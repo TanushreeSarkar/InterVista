@@ -1,0 +1,12 @@
+node_modules/
+**/node_modules/
+.next/
+dist/
+build/
+.vercel/
+.env
+.env.local
+*.json
+tsconfig.tsbuildinfo
+.DS_Store
+.vscode/
