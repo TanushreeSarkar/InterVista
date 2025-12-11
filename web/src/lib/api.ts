@@ -1,24 +1,32 @@
-// API Configuration
+// web/src/lib/api.ts
+
+// API base (use NEXT_PUBLIC_API_URL in Vercel / env)
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-// Helper to get auth token
+/**
+ * Helpers
+ */
+
+// Get auth token from localStorage (only available in client runtime)
 function getAuthToken(): string | null {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('token');
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("token");
   }
   return null;
 }
 
-// Helper to get auth headers
+// Build headers for fetch (JSON requests)
 function getAuthHeaders(): HeadersInit {
   const token = getAuthToken();
   return {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
 
-// Types
+/**
+ * Types
+ */
 export interface InterviewSession {
   id: string;
   userId: string;
@@ -51,63 +59,78 @@ export interface Evaluation {
   overallScore?: number;
 }
 
-// API Functions
+/**
+ * API functions
+ */
+
 export async function createSession(data: {
   role: string;
   level: string;
 }): Promise<InterviewSession> {
-  const response = await fetch(`${API_BASE_URL}/api/sessions`, {
+  const res = await fetch(`${API_BASE_URL}/api/sessions`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
 
-  if (!response.ok) {
-    throw new Error("Failed to create session");
+  if (!res.ok) {
+    throw new Error(`createSession failed: ${res.status} ${res.statusText}`);
   }
 
-  return response.json();
+  return res.json();
 }
 
 export async function getSession(sessionId: string): Promise<InterviewSession> {
-  const response = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}`, {
+  const res = await fetch(`${API_BASE_URL}/api/sessions/${encodeURIComponent(sessionId)}`, {
     headers: getAuthHeaders(),
+    // no-store prevents caching during dev/SSR; adjust if needed
+    cache: "no-store",
   });
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch session");
+  if (!res.ok) {
+    throw new Error(`getSession failed: ${res.status} ${res.statusText}`);
   }
 
-  return response.json();
+  return res.json();
 }
 
-export async function getSessions(): Promise<InterviewSession[]> {
-  const response = await fetch(`${API_BASE_URL}/api/sessions`, {
+/**
+ * Fetch sessions.
+ * If userId is provided, it is sent as ?userId=...
+ */
+export async function getSessions(userId?: string): Promise<InterviewSession[]> {
+  const query = userId ? `?userId=${encodeURIComponent(userId)}` : "";
+  const res = await fetch(`${API_BASE_URL}/api/sessions${query}`, {
     headers: getAuthHeaders(),
+    cache: "no-store",
   });
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch sessions");
+  if (!res.ok) {
+    throw new Error(`getSessions failed: ${res.status} ${res.statusText}`);
   }
 
-  return response.json();
+  return res.json();
 }
 
 export async function getQuestions(sessionId: string): Promise<Question[]> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/sessions/${sessionId}/questions`,
+  const res = await fetch(
+    `${API_BASE_URL}/api/sessions/${encodeURIComponent(sessionId)}/questions`,
     {
       headers: getAuthHeaders(),
+      cache: "no-store",
     }
   );
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch questions");
+  if (!res.ok) {
+    throw new Error(`getQuestions failed: ${res.status} ${res.statusText}`);
   }
 
-  return response.json();
+  return res.json();
 }
 
+/**
+ * Submit audio answer as multipart/form-data
+ */
 export async function submitAnswer(data: {
   sessionId: string;
   questionId: string;
@@ -119,56 +142,57 @@ export async function submitAnswer(data: {
   formData.append("questionId", data.questionId);
 
   const token = getAuthToken();
-  const response = await fetch(`${API_BASE_URL}/api/answers`, {
+  const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+
+  const res = await fetch(`${API_BASE_URL}/api/answers`, {
     method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers,
     body: formData,
   });
 
-  if (!response.ok) {
-    throw new Error("Failed to submit answer");
+  if (!res.ok) {
+    throw new Error(`submitAnswer failed: ${res.status} ${res.statusText}`);
   }
 }
 
-export async function getEvaluation(
-  sessionId: string
-): Promise<Evaluation[]> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/answers/evaluation/${sessionId}`,
-    {
-      headers: getAuthHeaders(),
-    }
-  );
+export async function getEvaluation(sessionId: string): Promise<Evaluation[]> {
+  const res = await fetch(`${API_BASE_URL}/api/answers/evaluation/${encodeURIComponent(sessionId)}`, {
+    headers: getAuthHeaders(),
+    cache: "no-store",
+  });
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch evaluation");
+  if (!res.ok) {
+    throw new Error(`getEvaluation failed: ${res.status} ${res.statusText}`);
   }
 
-  return response.json();
+  return res.json();
 }
 
-// WebSocket for real-time evaluation
+/**
+ * Real-time evaluation stream (WebSocket)
+ * Note: API_BASE_URL must be http(s) — we replace protocol for ws.
+ */
 export function connectEvaluationStream(
   sessionId: string,
   onMessage: (data: Partial<Evaluation>) => void,
   onError?: (error: Error) => void
 ): WebSocket {
-  const ws = new WebSocket(
-    `${API_BASE_URL.replace("http", "ws")}/api/sessions/${sessionId}/stream`
-  );
+  // Convert http(s) to ws(s)
+  const wsBase = API_BASE_URL.replace(/^http/, "ws");
+  const ws = new WebSocket(`${wsBase}/api/sessions/${encodeURIComponent(sessionId)}/stream`);
 
   ws.onmessage = (event) => {
     try {
-      const data = JSON.parse(event.data);
-      onMessage(data);
-    } catch (error) {
-      console.error("Failed to parse WebSocket message:", error);
+      const parsed = JSON.parse(event.data);
+      onMessage(parsed);
+    } catch (err) {
+      console.error("Failed to parse WS message", err);
     }
   };
 
-  ws.onerror = (event) => {
+  ws.onerror = (ev) => {
     const error = new Error("WebSocket error");
-    console.error("WebSocket error:", event);
+    console.error("WebSocket error", ev);
     onError?.(error);
   };
 

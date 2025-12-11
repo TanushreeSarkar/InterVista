@@ -1,11 +1,11 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import type { TranscriptMessage } from "@/components/interview/transcript-panel";
 import {
   Mic,
   MicOff,
@@ -40,7 +40,12 @@ export function ZoomStyleInterview({
   const [showTranscript, setShowTranscript] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [connectionQuality, setConnectionQuality] = useState<"excellent" | "good" | "poor">("excellent");
+  const [connectionQuality, setConnectionQuality] = useState<
+    "excellent" | "good" | "poor"
+  >("excellent");
+
+  // transcript state is an array of messages (matches TranscriptPanel prop)
+  const [transcript, setTranscript] = useState<TranscriptMessage[]>([]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -156,7 +161,7 @@ export function ZoomStyleInterview({
               exit={{ width: 0, opacity: 0 }}
               className="border-l border-border bg-card"
             >
-              <TranscriptPanel />
+              <TranscriptPanel transcript={transcript} />
             </motion.div>
           )}
         </AnimatePresence>

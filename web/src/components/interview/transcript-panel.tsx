@@ -5,19 +5,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { User, Bot, X } from "lucide-react";
 
-interface TranscriptMessage {
+/** EXPORT THIS TYPE */
+export interface TranscriptMessage {
   speaker: string;
   text: string;
   timestamp: string;
 }
 
-interface TranscriptPanelProps {
+/** EXPORT THIS TOO (optional but helpful) */
+export interface TranscriptPanelProps {
   transcript: TranscriptMessage[];
   onClose?: () => void;
 }
 
 export function TranscriptPanel({ transcript, onClose }: TranscriptPanelProps) {
-
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 border-b border-border">
@@ -39,7 +40,10 @@ export function TranscriptPanel({ transcript, onClose }: TranscriptPanelProps) {
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
           {transcript.map((message, index) => {
-            const isAI = message.speaker.toLowerCase().includes("ai") || message.speaker.toLowerCase().includes("interviewer");
+            const isAI =
+              message.speaker.toLowerCase().includes("ai") ||
+              message.speaker.toLowerCase().includes("interviewer");
+
             return (
               <div
                 key={index}
@@ -47,6 +51,7 @@ export function TranscriptPanel({ transcript, onClose }: TranscriptPanelProps) {
                   !isAI ? "flex-row-reverse space-x-reverse" : ""
                 }`}
               >
+                {/* Avatar */}
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                     isAI
@@ -60,11 +65,9 @@ export function TranscriptPanel({ transcript, onClose }: TranscriptPanelProps) {
                     <User className="w-4 h-4" />
                   )}
                 </div>
-                <div
-                  className={`flex-1 ${
-                    !isAI ? "text-right" : ""
-                  }`}
-                >
+
+                {/* Message Bubble */}
+                <div className={`flex-1 ${!isAI ? "text-right" : ""}`}>
                   <div
                     className={`inline-block p-3 rounded-lg ${
                       isAI
