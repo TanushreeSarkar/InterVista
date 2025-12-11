@@ -4,86 +4,72 @@
 
 @layer base {
   :root {
+    /* Minimal Light Theme - Black, White, Grey */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 0 0% 0%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 0 0% 0%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 0 0% 0%;
     
-    /* Vibrant Primary - Blue */
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
     
-    /* Vibrant Secondary - Purple */
-    --secondary: 262 83% 58%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 9%;
     
-    /* Success - Green */
     --success: 142 76% 36%;
-    --success-foreground: 0 0% 100%;
+    --success-foreground: 0 0% 98%;
     
-    /* Warning - Amber */
     --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
+    --warning-foreground: 0 0% 98%;
     
-    /* Error - Red */
     --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive-foreground: 0 0% 98%;
     
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 217 91% 60%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 9%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 0 0% 9%;
     --radius: 0.5rem;
-    
-    /* Custom colors */
-    --gradient-start: 217 91% 60%;
-    --gradient-end: 262 83% 58%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    /* Minimal Dark Theme - Black, Dark Pink, Cherry Red */
+    --background: 0 0% 5%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 98%;
     
-    /* Vibrant Primary - Lighter Blue for dark mode */
-    --primary: 217 91% 65%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Dark Pink Primary */
+    --primary: 330 81% 60%;
+    --primary-foreground: 0 0% 98%;
     
-    /* Vibrant Secondary - Lighter Purple for dark mode */
-    --secondary: 262 80% 65%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Cherry Red Secondary */
+    --secondary: 348 83% 47%;
+    --secondary-foreground: 0 0% 98%;
     
-    /* Success - Lighter Green */
     --success: 142 69% 58%;
-    --success-foreground: 222.2 47.4% 11.2%;
+    --success-foreground: 0 0% 5%;
     
-    /* Warning - Lighter Amber */
     --warning: 38 92% 60%;
-    --warning-foreground: 222.2 47.4% 11.2%;
+    --warning-foreground: 0 0% 5%;
     
-    /* Error - Lighter Red */
     --destructive: 0 84% 70%;
-    --destructive-foreground: 222.2 47.4% 11.2%;
+    --destructive-foreground: 0 0% 5%;
     
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 217 91% 65%;
-    
-    /* Custom colors */
-    --gradient-start: 217 91% 65%;
-    --gradient-end: 262 80% 65%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 98%;
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 330 81% 60%;
   }
 }
 
@@ -105,15 +91,11 @@
     @apply bg-gradient-to-r from-primary to-secondary;
   }
   
-  .bg-gradient-primary-dark {
-    @apply bg-gradient-to-br from-primary/20 to-secondary/20;
-  }
-  
   .shadow-glow {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
   }
   
-  .shadow-glow-purple {
-    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+  .dark .shadow-glow {
+    box-shadow: 0 0 20px rgba(236, 72, 153, 0.3);
   }
 }
