@@ -37,7 +37,6 @@ export async function createSession(req: AuthRequest, res: Response) {
       throw new AppError('Role and level are required', 400);
     }
 
-    const db = getFirestore();
     const sessionId = uuidv4();
 
     // Create session
@@ -51,8 +50,6 @@ export async function createSession(req: AuthRequest, res: Response) {
       updatedAt: new Date(),
     };
 
-    await db.collection(collections.sessions).doc(sessionId).set(session);
-
     // Generate questions
     const questions = (questionTemplates[role] || questionTemplates['Software Engineer']).map(
       (text, index) => ({
@@ -64,13 +61,25 @@ export async function createSession(req: AuthRequest, res: Response) {
       })
     );
 
-    // Save questions
-    const batch = db.batch();
-    questions.forEach((question) => {
-      const ref = db.collection(collections.questions).doc(question.id);
-      batch.set(ref, question);
-    });
-    await batch.commit();
+    // Try to save to database, but continue even if it fails
+    try {
+      const db = getFirestore();
+      await db.collection(collections.sessions).doc(sessionId).set(session);
+      
+      const batch = db.batch();
+      questions.forEach((question) => {
+        const ref = db.collection(collections.questions).doc(question.id);
+        batch.set(ref, question);
+      });
+      await batch.commit();
+    } catch (dbError) {
+      console.warn('Database save failed, using in-memory storage:', dbError);
+      // Store in memory for mock mode
+      if (!global.mockSessions) global.mockSessions = {};
+      if (!global.mockQuestions) global.mockQuestions = {};
+      global.mockSessions[sessionId] = session;
+      global.mockQuestions[sessionId] = questions;
+    }
 
     res.status(201).json(session);
   } catch (error) {
@@ -81,15 +90,25 @@ export async function createSession(req: AuthRequest, res: Response) {
 export async function getSession(req: AuthRequest, res: Response) {
   try {
     const { sessionId } = req.params;
-    const db = getFirestore();
 
-    const sessionDoc = await db.collection(collections.sessions).doc(sessionId).get();
+    // Try database first
+    try {
+      const db = getFirestore();
+      const sessionDoc = await db.collection(collections.sessions).doc(sessionId).get();
 
-    if (!sessionDoc.exists) {
-      throw new AppError('Session not found', 404);
+      if (sessionDoc.exists) {
+        return res.json(sessionDoc.data());
+      }
+    } catch (dbError) {
+      console.warn('Database read failed, checking mock storage');
     }
 
-    res.json(sessionDoc.data());
+    // Fall back to mock storage
+    if (global.mockSessions && global.mockSessions[sessionId]) {
+      return res.json(global.mockSessions[sessionId]);
+    }
+
+    throw new AppError('Session not found', 404);
   } catch (error) {
     throw error;
   }
@@ -98,17 +117,31 @@ export async function getSession(req: AuthRequest, res: Response) {
 export async function getSessions(req: AuthRequest, res: Response) {
   try {
     const userId = req.user?.id;
-    const db = getFirestore();
 
-    const sessionsSnapshot = await db
-      .collection(collections.sessions)
-      .where('userId', '==', userId)
-      .orderBy('createdAt', 'desc')
-      .get();
+    // Try database first
+    try {
+      const db = getFirestore();
+      const sessionsSnapshot = await db
+        .collection(collections.sessions)
+        .where('userId', '==', userId)
+        .orderBy('createdAt', 'desc')
+        .get();
 
-    const sessions = sessionsSnapshot.docs.map((doc) => doc.data());
+      const sessions = sessionsSnapshot.docs.map((doc) => doc.data());
+      return res.json(sessions);
+    } catch (dbError) {
+      console.warn('Database read failed, checking mock storage');
+    }
 
-    res.json(sessions);
+    // Fall back to mock storage
+    if (global.mockSessions) {
+      const sessions = Object.values(global.mockSessions).filter(
+        (s: any) => s.userId === userId
+      );
+      return res.json(sessions);
+    }
+
+    res.json([]);
   } catch (error) {
     throw error;
   }
@@ -117,17 +150,30 @@ export async function getSessions(req: AuthRequest, res: Response) {
 export async function getQuestions(req: AuthRequest, res: Response) {
   try {
     const { sessionId } = req.params;
-    const db = getFirestore();
 
-    const questionsSnapshot = await db
-      .collection(collections.questions)
-      .where('sessionId', '==', sessionId)
-      .orderBy('order', 'asc')
-      .get();
+    // Try database first
+    try {
+      const db = getFirestore();
+      const questionsSnapshot = await db
+        .collection(collections.questions)
+        .where('sessionId', '==', sessionId)
+        .orderBy('order', 'asc')
+        .get();
 
-    const questions = questionsSnapshot.docs.map((doc) => doc.data());
+      const questions = questionsSnapshot.docs.map((doc) => doc.data());
+      if (questions.length > 0) {
+        return res.json(questions);
+      }
+    } catch (dbError) {
+      console.warn('Database read failed, checking mock storage');
+    }
 
-    res.json(questions);
+    // Fall back to mock storage
+    if (global.mockQuestions && global.mockQuestions[sessionId]) {
+      return res.json(global.mockQuestions[sessionId]);
+    }
+
+    res.json([]);
   } catch (error) {
     throw error;
   }

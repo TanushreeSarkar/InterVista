@@ -1,98 +1,293 @@
+"use client";
+
 import Link from "next/link";
-import { Mic, Github, Twitter, Linkedin } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import {
+  Mail,
+  Twitter,
+  Linkedin,
+  Github,
+  Facebook,
+  Instagram,
+  Youtube,
+} from "lucide-react";
 
 export function Footer() {
+  const currentYear = new Date().getFullYear();
+
   return (
-    <footer className="border-t border-border bg-background">
+    <footer className="bg-card border-t border-border">
       <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Mic className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="text-xl font-bold">InterVista</span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              AI-powered mock interviews to help you ace your next job interview.
+        {/* Main Footer Content */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-8">
+          {/* Brand Column */}
+          <div className="lg:col-span-2">
+            <Logo size="md" showText animated={false} />
+            <p className="mt-4 text-sm text-muted-foreground max-w-sm">
+              Master your interview skills with AI-powered practice sessions.
+              Get instant feedback and improve your performance with every
+              practice.
             </p>
+            
+            {/* Newsletter */}
+            <div className="mt-6">
+              <h4 className="font-semibold mb-3">Stay Updated</h4>
+              <div className="flex gap-2">
+                <Input
+                  type="email"
+                  placeholder="Enter your email"
+                  className="max-w-xs"
+                />
+                <Button>
+                  <Mail className="w-4 h-4 mr-2" />
+                  Subscribe
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Get interview tips and platform updates
+              </p>
+            </div>
           </div>
 
+          {/* Product Column */}
           <div>
-            <h3 className="font-semibold mb-4">Product</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
+            <h4 className="font-semibold mb-4">Product</h4>
+            <ul className="space-y-3 text-sm">
               <li>
-                <Link href="/#features" className="hover:text-primary transition-colors">
+                <Link
+                  href="/#features"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
                   Features
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard" className="hover:text-primary transition-colors">
+                <Link
+                  href="/#how-it-works"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  How It Works
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/#pricing"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Pricing
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/dashboard"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
                   Dashboard
                 </Link>
               </li>
               <li>
-                <Link href="/reports" className="hover:text-primary transition-colors">
+                <Link
+                  href="/reports"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
                   Reports
                 </Link>
               </li>
             </ul>
           </div>
 
+          {/* Company Column */}
           <div>
-            <h3 className="font-semibold mb-4">Company</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
+            <h4 className="font-semibold mb-4">Company</h4>
+            <ul className="space-y-3 text-sm">
               <li>
-                <Link href="/about" className="hover:text-primary transition-colors">
-                  About
+                <Link
+                  href="/about"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  About Us
                 </Link>
               </li>
               <li>
-                <Link href="/privacy" className="hover:text-primary transition-colors">
-                  Privacy
+                <Link
+                  href="/careers"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Careers
                 </Link>
               </li>
               <li>
-                <Link href="/terms" className="hover:text-primary transition-colors">
-                  Terms
+                <Link
+                  href="/blog"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Blog
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/press"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Press Kit
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/contact"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Contact
                 </Link>
               </li>
             </ul>
           </div>
 
+          {/* Resources Column */}
           <div>
-            <h3 className="font-semibold mb-4">Connect</h3>
-            <div className="flex space-x-4">
-              <a
-                href="https://github.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-primary transition-colors"
-              >
-                <Github className="w-5 h-5" />
-              </a>
+            <h4 className="font-semibold mb-4">Resources</h4>
+            <ul className="space-y-3 text-sm">
+              <li>
+                <Link
+                  href="/help"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Help Center
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/docs"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Documentation
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/guides"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Interview Guides
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/api"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  API Reference
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/status"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  System Status
+                </Link>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <Separator className="my-8" />
+
+        {/* Bottom Footer */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          {/* Copyright */}
+          <div className="text-sm text-muted-foreground">
+            © {currentYear} InterVista. All rights reserved.
+          </div>
+
+          {/* Legal Links */}
+          <div className="flex items-center gap-6 text-sm">
+            <Link
+              href="/privacy"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              href="/terms"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Terms of Service
+            </Link>
+            <Link
+              href="/cookies"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cookie Policy
+            </Link>
+          </div>
+
+          {/* Social Links */}
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" asChild>
               <a
                 href="https://twitter.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-primary transition-colors"
+                aria-label="Twitter"
               >
-                <Twitter className="w-5 h-5" />
+                <Twitter className="w-4 h-4" />
               </a>
+            </Button>
+            <Button variant="ghost" size="icon" asChild>
               <a
                 href="https://linkedin.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-primary transition-colors"
+                aria-label="LinkedIn"
               >
-                <Linkedin className="w-5 h-5" />
+                <Linkedin className="w-4 h-4" />
               </a>
-            </div>
+            </Button>
+            <Button variant="ghost" size="icon" asChild>
+              <a
+                href="https://github.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="GitHub"
+              >
+                <Github className="w-4 h-4" />
+              </a>
+            </Button>
+            <Button variant="ghost" size="icon" asChild>
+              <a
+                href="https://facebook.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Facebook"
+              >
+                <Facebook className="w-4 h-4" />
+              </a>
+            </Button>
+            <Button variant="ghost" size="icon" asChild>
+              <a
+                href="https://instagram.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+              >
+                <Instagram className="w-4 h-4" />
+              </a>
+            </Button>
+            <Button variant="ghost" size="icon" asChild>
+              <a
+                href="https://youtube.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="YouTube"
+              >
+                <Youtube className="w-4 h-4" />
+              </a>
+            </Button>
           </div>
-        </div>
-
-        <div className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} InterVista. All rights reserved.</p>
         </div>
       </div>
     </footer>
