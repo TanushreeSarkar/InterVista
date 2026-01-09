@@ -1,8 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "export",
+
   webpack(config) {
     const fileLoaderRule = config.module.rules.find(
-      (rule) => rule.test?.test?.('.svg')
+      (rule) => rule.test?.test?.(".svg")
     );
 
     if (fileLoaderRule) {
@@ -16,7 +18,7 @@ const nextConfig = {
           test: /\.svg$/i,
           issuer: fileLoaderRule.issuer,
           resourceQuery: { not: [/url/] },
-          use: ['@svgr/webpack'],
+          use: ["@svgr/webpack"],
         }
       );
 
