@@ -6,7 +6,6 @@ build/
 .vercel/
 .env
 .env.local
-*.json
 tsconfig.tsbuildinfo
 .DS_Store
 .vscode/
