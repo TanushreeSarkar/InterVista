@@ -135,11 +135,15 @@ export async function submitAnswer(data: {
   sessionId: string;
   questionId: string;
   audioBlob: Blob;
+  transcript?: string;
 }): Promise<void> {
   const formData = new FormData();
   formData.append("audio", data.audioBlob, "answer.webm");
   formData.append("sessionId", data.sessionId);
   formData.append("questionId", data.questionId);
+  if (data.transcript) {
+    formData.append("transcript", data.transcript);
+  }
 
   const token = getAuthToken();
   const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};

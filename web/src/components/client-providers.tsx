@@ -2,6 +2,9 @@
 
 import { ThemeProvider } from "@/components/theme-provider";
 
+import { AuthProvider } from "@/contexts/auth-context";
+import { SpeechProvider } from "@/contexts/SpeechContext";
+
 export function ClientProviders({
   children,
 }: {
@@ -14,7 +17,11 @@ export function ClientProviders({
       enableSystem
       disableTransitionOnChange
     >
-      {children}
+      <AuthProvider>
+        <SpeechProvider>
+          {children}
+        </SpeechProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

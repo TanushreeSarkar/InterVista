@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { motion, useInView } from "framer-motion";
 import { Mic, Brain, BarChart3, Clock, Target, Zap } from "lucide-react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useGSAP } from "@gsap/react";
+
+gsap.registerPlugin(ScrollTrigger);
 
 const features = [
   {
@@ -39,37 +43,58 @@ const features = [
 ];
 
 export function FeaturesSection() {
-  const sectionRef = useRef<HTMLElement>(null);
-  const isInView = useInView(sectionRef, { once: true, margin: "-100px" });
+  const container = useRef<HTMLElement>(null);
+
+  useGSAP(() => {
+    // Header Animation
+    gsap.from(".feature-header", {
+      scrollTrigger: {
+        trigger: container.current,
+        start: "top 80%",
+        toggleActions: "play none none reverse",
+      },
+      y: 50,
+      opacity: 0,
+      duration: 0.8,
+      ease: "power3.out",
+    });
+
+    // Cards Animation
+    gsap.from(".feature-card", {
+      scrollTrigger: {
+        trigger: ".feature-cards-grid",
+        start: "top 85%",
+        toggleActions: "play none none reverse",
+      },
+      y: 100,
+      opacity: 0,
+      duration: 0.8,
+      stagger: 0.1,
+      ease: "power3.out",
+    });
+  }, { scope: container });
 
   return (
     <section
       id="features"
-      ref={sectionRef}
+      ref={container}
       className="py-24 bg-muted/50"
     >
       <div className="container mx-auto px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 50 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-16"
-        >
+        <div className="feature-header text-center mb-16 opacity-100">
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
             Everything You Need to Succeed
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Powerful features designed to help you prepare for any interview scenario
           </p>
-        </motion.div>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="feature-cards-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map((feature, index) => (
-            <motion.div
+            <div
               key={index}
-              initial={{ opacity: 0, y: 50 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
+              className="feature-card opacity-100"
             >
               <Card className="h-full hover:shadow-lg transition-shadow duration-300 border-2 hover:border-primary/50">
                 <CardHeader>
@@ -82,7 +107,7 @@ export function FeaturesSection() {
                   </CardDescription>
                 </CardHeader>
               </Card>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>

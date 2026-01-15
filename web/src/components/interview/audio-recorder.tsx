@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Mic, Square, Play, Pause, Trash2, Check } from "lucide-react";
 import { WaveformVisualizer } from "./waveform-visualizer";
 import { submitAnswer } from "@/lib/api";
+import { useSpeech } from "@/contexts/SpeechContext";
 
 interface AudioRecorderProps {
   questionId: string;
@@ -50,6 +51,14 @@ export function AudioRecorder({
     };
   }, [audioUrl]);
 
+  const {
+    startListening,
+    stopListening,
+    resetTranscript,
+    transcript,
+    isListening: isListeningSpeech,
+  } = useSpeech();
+
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -71,12 +80,15 @@ export function AudioRecorder({
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
         stream.getTracks().forEach((track) => track.stop());
+        stopListening(); // Stop STT
       };
 
       mediaRecorder.start();
       setIsRecording(true);
       setIsPaused(false);
       setRecordingTime(0);
+      resetTranscript(); // Clear previous transcript
+      startListening(); // Start STT
 
       timerRef.current = setInterval(() => {
         setRecordingTime((prev) => prev + 1);
@@ -102,11 +114,13 @@ export function AudioRecorder({
     if (mediaRecorderRef.current && isRecording) {
       if (isPaused) {
         mediaRecorderRef.current.resume();
+        startListening(); // Resume STT
         timerRef.current = setInterval(() => {
           setRecordingTime((prev) => prev + 1);
         }, 1000);
       } else {
         mediaRecorderRef.current.pause();
+        stopListening(); // Pause STT
         if (timerRef.current) {
           clearInterval(timerRef.current);
         }
@@ -135,6 +149,7 @@ export function AudioRecorder({
     setAudioUrl(null);
     setRecordingTime(0);
     setIsPlaying(false);
+    resetTranscript();
   }
 
   async function handleSubmit() {
@@ -146,8 +161,10 @@ export function AudioRecorder({
         sessionId,
         questionId,
         audioBlob,
+        transcript, // Send transcript
       });
       onRecordingComplete(questionId, audioBlob);
+      resetTranscript();
     } catch (error) {
       console.error("Failed to submit answer:", error);
       // For demo, just mark as complete
