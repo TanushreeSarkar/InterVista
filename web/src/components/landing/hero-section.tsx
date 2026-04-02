@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { gsap } from "gsap";
-import { Mic, Sparkles, TrendingUp } from "lucide-react";
+import { Mic, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 export function HeroSection() {

@@ -35,7 +35,7 @@ export default function ServerErrorPage() {
           <h2 className="text-3xl font-bold mb-4">Server Error</h2>
 
           <p className="text-xl text-muted-foreground mb-8">
-            Something went wrong on our end. We're working to fix it!
+            Something went wrong on our end. We&apos;re working to fix it!
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

@@ -1,204 +1,315 @@
 // web/src/lib/api.ts
 
-// API base (use NEXT_PUBLIC_API_URL in Vercel / env)
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-/**
- * Helpers
- */
-
-// Get auth token from localStorage (only available in client runtime)
-function getAuthToken(): string | null {
-  if (typeof window !== "undefined") {
-    return localStorage.getItem("token");
-  }
-  return null;
-}
-
-// Build headers for fetch (JSON requests)
-function getAuthHeaders(): HeadersInit {
-  const token = getAuthToken();
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+// ─── Core fetch wrapper ────────────────────────────────────
+async function apiFetch<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string> || {}),
   };
+
+  // Only set Content-Type for non-FormData requests
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers,
+    credentials: 'include', // Send cookies with every request
+    cache: 'no-store',
+  });
+
+  if (res.status === 401) {
+    if (typeof window !== 'undefined') {
+      window.location.href = '/sign-in';
+    }
+    throw new Error('Session expired. Please sign in again.');
+  }
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(errorData.error || `Request failed: ${res.status}`);
+  }
+
+  const json = await res.json();
+  // Backend wraps responses in { data: ... }
+  return json.data !== undefined ? json.data : json;
 }
 
-/**
- * Types
- */
+// ─── Types ─────────────────────────────────────────────────
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface AuthResponse {
+  user: User;
+}
+
 export interface InterviewSession {
   id: string;
   userId: string;
   role: string;
-  level: string;
-  status: "pending" | "in_progress" | "completed" | "failed";
+  company: string;
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  status: 'pending' | 'in_progress' | 'completed';
   createdAt: string;
-  completedAt?: string;
-  score?: number;
+  updatedAt: string;
 }
 
 export interface Question {
   id: string;
   sessionId: string;
   text: string;
-  order: number;
-  answer?: string;
-  audioUrl?: string;
-  score?: number;
-  feedback?: string;
+  index: number;
 }
 
-export interface Evaluation {
-  sessionId: string;
-  questionId: string;
+export interface SkillsAssessment {
+  communication: number;
+  technicalKnowledge: number;
+  problemSolving: number;
+  confidence: number;
+}
+
+export interface QuestionFeedback {
+  questionIndex: number;
+  question: string;
+  answer: string;
   score: number;
-  feedback: string;
   strengths: string[];
   improvements: string[];
-  overallScore?: number;
+  detailedFeedback: string;
 }
 
-/**
- * API functions
- */
+export interface EvaluationResult {
+  id: string;
+  sessionId: string;
+  overallScore: number;
+  summary: string;
+  recommendation: 'Strong Hire' | 'Hire' | 'Consider' | 'No Hire';
+  skillsAssessment: SkillsAssessment;
+  feedback: QuestionFeedback[];
+}
 
+export interface CreateSessionResponse {
+  session: InterviewSession;
+  questions: Question[];
+}
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  bio: string;
+  targetRole: string;
+  targetCompany: string;
+  createdAt: string | null;
+}
+
+export interface AnalyticsOverview {
+  totalSessions: number;
+  completedSessions: number;
+  averageScore: number;
+  scoreHistory: Array<{ date: string; score: number; role: string }>;
+  skillsProgress: {
+    communication: number[];
+    technicalKnowledge: number[];
+    problemSolving: number[];
+    confidence: number[];
+  };
+  topRoles: Array<{ role: string; count: number; avgScore: number }>;
+  improvementRate: number;
+  streak: number;
+}
+
+export interface Persona {
+  id: string;
+  name: string;
+  role: string;
+  bio: string;
+}
+
+export interface QuestionBank {
+  id: string;
+  name: string;
+  description: string;
+  questions: string[];
+}
+
+export interface TranscriptItem {
+  speaker: 'interviewer' | 'candidate';
+  text: string;
+  timestamp: string;
+}
+
+export type Transcript = TranscriptItem[];
+
+// ─── Auth API ──────────────────────────────────────────────
+export async function signIn(email: string, password: string): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>('/api/auth/signin', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export async function signUp(name: string, email: string, password: string): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>('/api/auth/signup', {
+    method: 'POST',
+    body: JSON.stringify({ name, email, password }),
+  });
+}
+
+export async function signOut(): Promise<void> {
+  await apiFetch<{ message: string }>('/api/auth/signout', {
+    method: 'POST',
+  });
+}
+
+export async function getMe(): Promise<User> {
+  return apiFetch<User>('/api/auth/me');
+}
+
+export async function resetPassword(email: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function verifyReset(email: string, otp: string, newPassword: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>('/api/auth/verify-reset', {
+    method: 'POST',
+    body: JSON.stringify({ email, otp, newPassword }),
+  });
+}
+
+// ─── Sessions API ──────────────────────────────────────────
 export async function createSession(data: {
   role: string;
-  level: string;
-}): Promise<InterviewSession> {
-  const res = await fetch(`${API_BASE_URL}/api/sessions`, {
-    method: "POST",
-    headers: getAuthHeaders(),
+  company: string;
+  difficulty: string;
+  personaId?: string;
+  questionBankId?: string;
+}): Promise<CreateSessionResponse> {
+  return apiFetch<CreateSessionResponse>('/api/sessions', {
+    method: 'POST',
     body: JSON.stringify(data),
   });
+}
 
-  if (!res.ok) {
-    throw new Error(`createSession failed: ${res.status} ${res.statusText}`);
-  }
-
-  return res.json();
+export async function getSessions(): Promise<InterviewSession[]> {
+  return apiFetch<InterviewSession[]>('/api/sessions');
 }
 
 export async function getSession(sessionId: string): Promise<InterviewSession> {
-  const res = await fetch(`${API_BASE_URL}/api/sessions/${encodeURIComponent(sessionId)}`, {
-    headers: getAuthHeaders(),
-    // no-store prevents caching during dev/SSR; adjust if needed
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`getSession failed: ${res.status} ${res.statusText}`);
-  }
-
-  return res.json();
+  return apiFetch<InterviewSession>(`/api/sessions/${encodeURIComponent(sessionId)}`);
 }
 
-/**
- * Fetch sessions.
- * If userId is provided, it is sent as ?userId=...
- */
-export async function getSessions(userId?: string): Promise<InterviewSession[]> {
-  const query = userId ? `?userId=${encodeURIComponent(userId)}` : "";
-  const res = await fetch(`${API_BASE_URL}/api/sessions${query}`, {
-    headers: getAuthHeaders(),
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`getSessions failed: ${res.status} ${res.statusText}`);
-  }
-
-  return res.json();
+export async function getSessionQuestions(sessionId: string): Promise<Question[]> {
+  return apiFetch<Question[]>(`/api/sessions/${encodeURIComponent(sessionId)}/questions`);
 }
 
-export async function getQuestions(sessionId: string): Promise<Question[]> {
-  const res = await fetch(
-    `${API_BASE_URL}/api/sessions/${encodeURIComponent(sessionId)}/questions`,
-    {
-      headers: getAuthHeaders(),
-      cache: "no-store",
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error(`getQuestions failed: ${res.status} ${res.statusText}`);
-  }
-
-  return res.json();
+export async function getSessionTranscript(sessionId: string): Promise<Transcript> {
+  return apiFetch<Transcript>(`/api/sessions/${encodeURIComponent(sessionId)}/transcript`);
 }
 
-/**
- * Submit audio answer as multipart/form-data
- */
+export async function exportSession(sessionId: string): Promise<{ url: string }> {
+  return apiFetch<{ url: string }>(`/api/sessions/${encodeURIComponent(sessionId)}/export`);
+}
+
+// ─── Answers API ───────────────────────────────────────────
 export async function submitAnswer(data: {
   sessionId: string;
   questionId: string;
-  audioBlob: Blob;
-  transcript?: string;
+  questionIndex: number;
+  text: string;
+  audioBlob?: Blob;
 }): Promise<void> {
   const formData = new FormData();
-  formData.append("audio", data.audioBlob, "answer.webm");
-  formData.append("sessionId", data.sessionId);
-  formData.append("questionId", data.questionId);
-  if (data.transcript) {
-    formData.append("transcript", data.transcript);
+  formData.append('sessionId', data.sessionId);
+  formData.append('questionId', data.questionId);
+  formData.append('questionIndex', data.questionIndex.toString());
+  formData.append('text', data.text);
+
+  if (data.audioBlob) {
+    formData.append('audio', data.audioBlob, 'answer.webm');
   }
 
-  const token = getAuthToken();
-  const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-
-  const res = await fetch(`${API_BASE_URL}/api/answers`, {
-    method: "POST",
-    headers,
+  await apiFetch<{ success: boolean }>('/api/answers', {
+    method: 'POST',
     body: formData,
   });
-
-  if (!res.ok) {
-    throw new Error(`submitAnswer failed: ${res.status} ${res.statusText}`);
-  }
 }
 
-export async function getEvaluation(sessionId: string): Promise<Evaluation[]> {
-  const res = await fetch(`${API_BASE_URL}/api/answers/evaluation/${encodeURIComponent(sessionId)}`, {
-    headers: getAuthHeaders(),
-    cache: "no-store",
+export async function getEvaluation(sessionId: string): Promise<EvaluationResult> {
+  return apiFetch<EvaluationResult>(`/api/answers/evaluation/${encodeURIComponent(sessionId)}`);
+}
+
+// ─── Users API ─────────────────────────────────────────────
+export async function getProfile(): Promise<UserProfile> {
+  return apiFetch<UserProfile>('/api/users/profile');
+}
+
+export async function updateProfile(data: {
+  name?: string;
+  bio?: string;
+  targetRole?: string;
+  targetCompany?: string;
+}): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>('/api/users/profile', {
+    method: 'PUT',
+    body: JSON.stringify(data),
   });
-
-  if (!res.ok) {
-    throw new Error(`getEvaluation failed: ${res.status} ${res.statusText}`);
-  }
-
-  return res.json();
 }
 
-/**
- * Real-time evaluation stream (WebSocket)
- * Note: API_BASE_URL must be http(s) — we replace protocol for ws.
- */
-export function connectEvaluationStream(
-  sessionId: string,
-  onMessage: (data: Partial<Evaluation>) => void,
-  onError?: (error: Error) => void
-): WebSocket {
-  // Convert http(s) to ws(s)
-  const wsBase = API_BASE_URL.replace(/^http/, "ws");
-  const ws = new WebSocket(`${wsBase}/api/sessions/${encodeURIComponent(sessionId)}/stream`);
+export async function changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>('/api/users/password', {
+    method: 'PUT',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
 
-  ws.onmessage = (event) => {
-    try {
-      const parsed = JSON.parse(event.data);
-      onMessage(parsed);
-    } catch (err) {
-      console.error("Failed to parse WS message", err);
-    }
-  };
+export async function deleteAccount(): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>('/api/users/account', {
+    method: 'DELETE',
+  });
+}
 
-  ws.onerror = (ev) => {
-    const error = new Error("WebSocket error");
-    console.error("WebSocket error", ev);
-    onError?.(error);
-  };
+// ─── Question Banks API ────────────────────────────────────
+export async function getQuestionBanks(): Promise<QuestionBank[]> {
+  return apiFetch<QuestionBank[]>('/api/question-banks');
+}
 
-  return ws;
+export async function createQuestionBank(data: {
+  name: string;
+  description?: string;
+  questions: string[];
+}): Promise<QuestionBank> {
+  return apiFetch<QuestionBank>('/api/question-banks', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// ─── Analytics API ─────────────────────────────────────────
+export async function getAnalyticsOverview(): Promise<AnalyticsOverview> {
+  return apiFetch<AnalyticsOverview>('/api/analytics/overview');
+}
+
+export async function getSkillsRadar(): Promise<SkillsAssessment> {
+  return apiFetch<SkillsAssessment>('/api/analytics/skills-radar');
+}
+
+export async function getRecommendations(): Promise<string[]> {
+  return apiFetch<string[]>('/api/analytics/recommendations');
+}
+
+// ─── Personas API ──────────────────────────────────────────
+export async function getPersonas(): Promise<Persona[]> {
+  return apiFetch<Persona[]>('/api/sessions/personas');
 }

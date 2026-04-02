@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { useRouter } from "next/navigation";
 import { EnhancedNavbar } from "@/components/layout/enhanced-navbar";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,20 +9,63 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Bell, Lock, Globe, Trash2, LogOut } from "lucide-react";
+import { Bell, Lock, Globe, Trash2, LogOut, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
+import * as api from "@/lib/api";
+import toast from "react-hot-toast";
 
 export default function SettingsPage() {
-  const router = useRouter();
+  const { signOut } = useAuth();
   const [notifications, setNotifications] = useState({
     email: true,
     push: false,
     sms: false,
   });
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    router.push("/");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handlePasswordChange = async () => {
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords don't match");
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      await api.changePassword(currentPassword, newPassword);
+      toast.success("Password changed successfully");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!confirm("Are you sure you want to permanently delete your account? This action cannot be undone.")) {
+      return;
+    }
+    setDeleteLoading(true);
+    try {
+      await api.deleteAccount();
+      toast.success("Account deleted");
+      await signOut();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   return (
@@ -120,6 +162,8 @@ export default function SettingsPage() {
                       type="password"
                       placeholder="Enter current password"
                       className="mt-2"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
                     />
                   </div>
 
@@ -130,6 +174,8 @@ export default function SettingsPage() {
                       type="password"
                       placeholder="Enter new password"
                       className="mt-2"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
                     />
                   </div>
 
@@ -140,10 +186,18 @@ export default function SettingsPage() {
                       type="password"
                       placeholder="Confirm new password"
                       className="mt-2"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
                     />
                   </div>
 
-                  <Button>Update Password</Button>
+                  <Button onClick={handlePasswordChange} disabled={passwordLoading}>
+                    {passwordLoading ? (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Updating...</>
+                    ) : (
+                      "Update Password"
+                    )}
+                  </Button>
                 </CardContent>
               </Card>
 
@@ -200,7 +254,7 @@ export default function SettingsPage() {
                         Sign out of your account on this device
                       </p>
                     </div>
-                    <Button variant="outline" onClick={handleLogout}>
+                    <Button variant="outline" onClick={() => signOut()}>
                       <LogOut className="w-4 h-4 mr-2" />
                       Sign Out
                     </Button>
@@ -215,9 +269,12 @@ export default function SettingsPage() {
                         Permanently delete your account and all data
                       </p>
                     </div>
-                    <Button variant="destructive">
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete Account
+                    <Button variant="destructive" onClick={handleDeleteAccount} disabled={deleteLoading}>
+                      {deleteLoading ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Deleting...</>
+                      ) : (
+                        <><Trash2 className="w-4 h-4 mr-2" /> Delete Account</>
+                      )}
                     </Button>
                   </div>
                 </CardContent>

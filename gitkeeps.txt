@@ -1,0 +1,5 @@
+﻿C:\Users\sarka\InterVista\backend\node_modules\tr46\lib\.gitkeep
+C:\Users\sarka\InterVista\backend\uploads\.gitkeep
+C:\Users\sarka\InterVista\web\node_modules\eslint-plugin-react\node_modules\resolve\test\resolver\symlinked\_\symlink_target\.gitkeep
+C:\Users\sarka\InterVista\web\node_modules\resolve\test\resolver\symlinked\_\symlink_target\.gitkeep
+C:\Users\sarka\InterVista\web\node_modules\tailwindcss\types\generated\.gitkeep

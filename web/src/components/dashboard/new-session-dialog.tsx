@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { createSession } from "@/lib/api";
 import { Loader2 } from "lucide-react";
@@ -24,7 +25,7 @@ import { Loader2 } from "lucide-react";
 interface NewSessionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSessionCreated?: () => void;
+  onSessionCreated?: (sessionId: string) => void;
 }
 
 const roles = [
@@ -38,35 +39,31 @@ const roles = [
   "Business Analyst",
 ];
 
-const levels = ["Entry Level", "Mid-Level", "Senior", "Lead", "Executive"];
+const difficulties = ["Easy", "Medium", "Hard"];
 
 export function NewSessionDialog({
   open,
   onOpenChange,
   onSessionCreated,
 }: NewSessionDialogProps) {
-  const router = useRouter();
   const [role, setRole] = useState("");
-  const [level, setLevel] = useState("");
+  const [company, setCompany] = useState("");
+  const [difficulty, setDifficulty] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleSubmit() {
-    if (!role || !level) return;
+    if (!role || !company || !difficulty) return;
 
     try {
       setLoading(true);
-      const session = await createSession({
-        role,
-        level,
-      });
-      onSessionCreated?.();
+      setError("");
+      const { session } = await createSession({ role, company, difficulty });
       onOpenChange(false);
-      router.push(`/interview/${session.id}`);
-    } catch (error) {
+      onSessionCreated?.(session.id);
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "Failed to create session");
       console.error("Failed to create session:", error);
-      // For demo, create a mock session and navigate
-      const mockSessionId = Date.now().toString();
-      router.push(`/interview/${mockSessionId}`);
     } finally {
       setLoading(false);
     }
@@ -78,14 +75,14 @@ export function NewSessionDialog({
         <DialogHeader>
           <DialogTitle>Start New Interview</DialogTitle>
           <DialogDescription>
-            Choose your target role and experience level to begin your practice
-            session.
+            Choose your target role, company, and difficulty level to begin your
+            practice session.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Role</label>
+            <Label>Role</Label>
             <Select value={role} onValueChange={setRole}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a role" />
@@ -101,20 +98,36 @@ export function NewSessionDialog({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Experience Level</label>
-            <Select value={level} onValueChange={setLevel}>
+            <Label htmlFor="company">Company</Label>
+            <Input
+              id="company"
+              placeholder="e.g. Google, Amazon, Meta..."
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Difficulty</Label>
+            <Select value={difficulty} onValueChange={setDifficulty}>
               <SelectTrigger>
-                <SelectValue placeholder="Select experience level" />
+                <SelectValue placeholder="Select difficulty" />
               </SelectTrigger>
               <SelectContent>
-                {levels.map((l) => (
-                  <SelectItem key={l} value={l}>
-                    {l}
+                {difficulties.map((d) => (
+                  <SelectItem key={d} value={d}>
+                    {d}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+
+          {error && (
+            <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
+              {error}
+            </div>
+          )}
         </div>
 
         <DialogFooter>
@@ -127,7 +140,7 @@ export function NewSessionDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!role || !level || loading}
+            disabled={!role || !company || !difficulty || loading}
           >
             {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Start Interview

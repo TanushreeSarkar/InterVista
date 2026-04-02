@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
@@ -23,7 +24,7 @@ export function SpeechProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            // @ts-ignore
+            // @ts-expect-error - SpeechRecognition is not in all browser type definitions
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
             if (SpeechRecognition) {

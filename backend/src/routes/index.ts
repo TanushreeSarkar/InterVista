@@ -1,0 +1,45 @@
+import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
+import { authRoutes } from './authRoutes';
+import { sessionRoutes } from './sessionRoutes';
+import { answerRoutes } from './answerRoutes';
+import { questionBankRoutes } from './questionBankRoutes';
+import { analyticsRoutes } from './analyticsRoutes';
+import { userRoutes } from './userRoutes';
+import { ttsRoutes } from './ttsRoutes';
+
+const router = Router();
+
+// ─── Route-specific rate limiters ──────────────────────────
+
+// Auth routes: 10 req / 15 min per IP (prevent brute force)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json({ error: 'Too many requests', retryAfter: 900 });
+  },
+});
+
+// AI routes: 20 req / hour per IP (expensive API calls)
+const aiLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json({ error: 'Too many requests', retryAfter: 3600 });
+  },
+});
+
+router.use('/auth', authLimiter, authRoutes);
+router.use('/sessions', sessionRoutes);
+router.use('/answers', answerRoutes);
+router.use('/question-banks', questionBankRoutes);
+router.use('/analytics', analyticsRoutes);
+router.use('/users', userRoutes);
+router.use('/tts', aiLimiter, ttsRoutes);
+
+export const apiRouter = router;

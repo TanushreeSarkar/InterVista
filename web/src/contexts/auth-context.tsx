@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import * as api from "@/lib/api";
 
 interface User {
   id: string;
@@ -11,90 +12,75 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  token: string | null;
-  loading: boolean;
+  isLoading: boolean;
+  isAuthenticated: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (name: string, email: string, password: string) => Promise<void>;
-  signOut: () => void;
-  isAuthenticated: boolean;
+  signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  // On mount, hydrate user from cookie-based session
   useEffect(() => {
-    // Check for existing session
-    const storedToken = localStorage.getItem("token");
-    const storedUser = localStorage.getItem("user");
-
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+    async function hydrate() {
+      try {
+        // Cookie sent automatically with credentials: 'include'
+        const userData = await api.getMe();
+        setUser(userData);
+      } catch {
+        // No valid session — user needs to sign in
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
     }
-    setLoading(false);
+
+    hydrate();
   }, []);
 
-  async function signIn(email: string, password: string) {
-    const response = await fetch("http://localhost:4000/api/auth/signin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+  const signIn = useCallback(async (email: string, password: string) => {
+    const { user: userData } = await api.signIn(email, password);
+    setUser(userData);
+    router.push("/dashboard");
+  }, [router]);
 
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || "Failed to sign in");
+  const signUp = useCallback(async (name: string, email: string, password: string) => {
+    const { user: userData } = await api.signUp(name, email, password);
+    setUser(userData);
+    router.push("/dashboard");
+  }, [router]);
+
+  const signOut = useCallback(async () => {
+    try {
+      await api.signOut();
+    } catch {
+      // Even if the API call fails, clear local state
     }
-
-    const data = await response.json();
-    setToken(data.token);
-    setUser(data.user);
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("user", JSON.stringify(data.user));
-  }
-
-  async function signUp(name: string, email: string, password: string) {
-    const response = await fetch("http://localhost:4000/api/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
-    });
-
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || "Failed to sign up");
-    }
-
-    const data = await response.json();
-    setToken(data.token);
-    setUser(data.user);
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("user", JSON.stringify(data.user));
-  }
-
-  function signOut() {
-    setToken(null);
     setUser(null);
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    router.push("/");
-  }
+    router.push("/sign-in");
+  }, [router]);
+
+  const resetPassword = useCallback(async (email: string) => {
+    await api.resetPassword(email);
+  }, []);
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        token,
-        loading,
+        isLoading,
         signIn,
         signUp,
         signOut,
-        isAuthenticated: !!user && !!token,
+        resetPassword,
+        isAuthenticated: !!user,
       }}
     >
       {children}

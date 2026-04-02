@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -11,9 +10,10 @@ import { Separator } from "@/components/ui/separator";
 import { Logo } from "@/components/ui/logo";
 import { Mail, Lock, Loader2, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function SignInPage() {
-  const router = useRouter();
+  const { signIn } = useAuth();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,24 +25,10 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:4000/api/auth/signin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to sign in");
-      }
-
-      const data = await response.json();
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      
-      router.push("/dashboard");
-    } catch (err: any) {
-      setError(err.message);
+      await signIn(email, password);
+      // signIn redirects to /dashboard on success
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to sign in");
     } finally {
       setLoading(false);
     }
@@ -147,7 +133,7 @@ export default function SignInPage() {
           </CardContent>
           <CardFooter className="flex-col space-y-2">
             <div className="text-sm text-center text-muted-foreground">
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
               <Link href="/sign-up" className="text-primary hover:underline">
                 Sign up
               </Link>

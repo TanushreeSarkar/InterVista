@@ -1,0 +1,513 @@
+﻿
+> web@0.1.0 lint
+> next lint
+
+node.exe : 
+At C:\Program 
+Files\nodejs\npm.ps1:29 
+char:3
++   & $NODE_EXE 
+$NPM_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~
+    + CategoryInfo         
+     : NotSpecified: (:St  
+  ring) [], RemoteExcept   
+ ion
+    + FullyQualifiedErrorI 
+   d : NativeCommandError
+ 
+./src/app/contact/page.tsx
+43:33  Error: `'` can be 
+escaped with `&apos;`, 
+`&lsquo;`, `&#39;`, 
+`&rsquo;`.  
+react/no-unescaped-entities
+
+./src/app/dashboard/page.ts
+x
+7:28  Error: 'CardTitle' 
+is defined but never used. 
+ @typescript-eslint/no-unus
+ed-vars
+7:39  Error: 
+'CardDescription' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+9:10  Error: 'Skeleton' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+10:36  Error: 'XCircle' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+10:45  Error: 'TrendingUp' 
+is defined but never used. 
+ @typescript-eslint/no-unus
+ed-vars
+21:10  Error: 'loading' is 
+assigned a value but never 
+used.  @typescript-eslint/n
+o-unused-vars
+33:6  Warning: React Hook 
+useEffect has a missing 
+dependency: 'router'. 
+Either include it or 
+remove the dependency 
+array.  
+react-hooks/exhaustive-deps
+52:9  Error: 
+'getStatusIcon' is 
+assigned a value but never 
+used.  @typescript-eslint/n
+o-unused-vars
+183:23  Error: 
+'difficulty' is assigned a 
+value but never used.  @typ
+escript-eslint/no-unused-va
+rs
+
+./src/app/dashboard/results
+/page.tsx
+5:16  Error: 'CardHeader' 
+is defined but never used. 
+ @typescript-eslint/no-unus
+ed-vars
+5:28  Error: 'CardTitle' 
+is defined but never used. 
+ @typescript-eslint/no-unus
+ed-vars
+5:39  Error: 
+'CardDescription' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+7:10  Error: 'CheckCircle' 
+is defined but never used. 
+ @typescript-eslint/no-unus
+ed-vars
+7:23  Error: 'Clock' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+
+./src/app/error/403/page.ts
+x
+38:20  Error: `'` can be 
+escaped with `&apos;`, 
+`&lsquo;`, `&#39;`, 
+`&rsquo;`.  
+react/no-unescaped-entities
+
+./src/app/error/404/page.ts
+x
+35:31  Error: `'` can be 
+escaped with `&apos;`, 
+`&lsquo;`, `&#39;`, 
+`&rsquo;`.  
+react/no-unescaped-entities
+35:52  Error: `'` can be 
+escaped with `&apos;`, 
+`&lsquo;`, `&#39;`, 
+`&rsquo;`.  
+react/no-unescaped-entities
+
+./src/app/error/500/page.ts
+x
+38:48  Error: `'` can be 
+escaped with `&apos;`, 
+`&lsquo;`, `&#39;`, 
+`&rsquo;`.  
+react/no-unescaped-entities
+
+./src/app/evaluation/[id]/p
+age.tsx
+32:6  Warning: React Hook 
+useEffect has missing 
+dependencies: 
+'loadEvaluation' and 
+'router'. Either include 
+them or remove the 
+dependency array.  
+react-hooks/exhaustive-deps
+39:21  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+
+./src/app/interview/[id]/pa
+ge.tsx
+35:6  Warning: React Hook 
+useEffect has missing 
+dependencies: 
+'loadQuestions' and 
+'router'. Either include 
+them or remove the 
+dependency array.  
+react-hooks/exhaustive-deps
+42:21  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+74:21  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+
+./src/app/maintenance/page.
+tsx
+35:15  Error: `'` can be 
+escaped with `&apos;`, 
+`&lsquo;`, `&#39;`, 
+`&rsquo;`.  
+react/no-unescaped-entities
+36:15  Error: `'` can be 
+escaped with `&apos;`, 
+`&lsquo;`, `&#39;`, 
+`&rsquo;`.  
+react/no-unescaped-entities
+
+./src/app/profile/page.tsx
+19:10  Error: 'loading' is 
+assigned a value but never 
+used.  @typescript-eslint/n
+o-unused-vars
+62:16  Error: 'err' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+90:19  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+
+./src/app/reports/page.tsx
+8:40  Error: 'Award' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+
+./src/app/reset-password/pa
+ge.tsx
+28:19  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+81:21  Error: `'` can be 
+escaped with `&apos;`, 
+`&lsquo;`, `&#39;`, 
+`&rsquo;`.  
+react/no-unescaped-entities
+
+./src/app/settings/page.tsx
+48:19  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+64:19  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+
+./src/app/sign-in/page.tsx
+30:19  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+136:18  Error: `'` can be 
+escaped with `&apos;`, 
+`&lsquo;`, `&#39;`, 
+`&rsquo;`.  
+react/no-unescaped-entities
+
+./src/app/sign-up/page.tsx
+43:19  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+
+./src/components/dashboard/
+new-session-dialog.tsx
+64:21  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+
+./src/components/evaluation
+/feedback-card.tsx
+4:10  Error: 'Badge' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+
+./src/components/interview/
+audio-recorder.tsx
+59:18  Error: 
+'isListeningSpeech' is 
+assigned a value but never 
+used.  @typescript-eslint/n
+o-unused-vars
+
+./src/components/interview/
+control-bar.tsx
+3:10  Error: 'useState' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+
+./src/components/interview/
+video-call-interface.tsx
+4:18  Error: 
+'AnimatePresence' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+15:3  Error: 
+'MessageSquare' is defined 
+but never used.  @typescrip
+t-eslint/no-unused-vars
+18:3  Error: 'Maximize2' 
+is defined but never used. 
+ @typescript-eslint/no-unus
+ed-vars
+47:10  Error: 
+'showTranscript' is 
+assigned a value but never 
+used.  @typescript-eslint/n
+o-unused-vars
+47:26  Error: 
+'setShowTranscript' is 
+assigned a value but never 
+used.  @typescript-eslint/n
+o-unused-vars
+66:40  Warning: The ref 
+value 'silenceTimeoutRef.cu
+rrent' will likely have 
+changed by the time this 
+effect cleanup function 
+runs. If this ref points 
+to a node rendered by 
+React, copy 'silenceTimeout
+Ref.current' to a variable 
+inside the effect, and use 
+that variable in the 
+cleanup function.  
+react-hooks/exhaustive-deps
+
+./src/components/interview/
+zoom-interview-layout.tsx
+29:22  Error: 
+'setTranscript' is 
+assigned a value but never 
+used.  @typescript-eslint/n
+o-unused-vars
+
+./src/components/landing/he
+ro-section.tsx
+7:25  Error: 'TrendingUp' 
+is defined but never used. 
+ @typescript-eslint/no-unus
+ed-vars
+
+./src/components/landing/ho
+w-it-works-section.tsx
+3:10  Error: 'useEffect' 
+is defined but never used. 
+ @typescript-eslint/no-unus
+ed-vars
+5:10  Error: 'gsap' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+
+./src/components/landing/te
+stimonials-section.tsx
+68:21  Warning: Using 
+`<img>` could result in 
+slower LCP and higher 
+bandwidth. Consider using 
+`<Image />` from 
+`next/image` to 
+automatically optimize 
+images. This may incur 
+additional usage or cost 
+from your provider. See: ht
+tps://nextjs.org/docs/messa
+ges/no-img-element  
+@next/next/no-img-element
+
+./src/components/layout/sid
+ebar.tsx
+7:10  Error: 'Button' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+8:61  Error: 'Menu' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+
+./src/components/reports/pe
+rformance-chart.tsx
+3:10  Error: 'LineChart' 
+is defined but never used. 
+ @typescript-eslint/no-unus
+ed-vars
+3:21  Error: 'Line' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+3:27  Error: 'XAxis' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+3:34  Error: 'YAxis' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+3:41  Error: 
+'CartesianGrid' is defined 
+but never used.  @typescrip
+t-eslint/no-unused-vars
+3:56  Error: 'Tooltip' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+3:65  Error: 
+'ResponsiveContainer' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+3:86  Error: 'Area' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+3:92  Error: 'AreaChart' 
+is defined but never used. 
+ @typescript-eslint/no-unus
+ed-vars
+
+./src/components/ui/input.t
+sx
+4:18  Error: An interface 
+declaring no members is 
+equivalent to its 
+supertype.  @typescript-esl
+int/no-empty-object-type
+
+./src/components/ui/textare
+a.tsx
+4:18  Error: An interface 
+declaring no members is 
+equivalent to its 
+supertype.  @typescript-esl
+int/no-empty-object-type
+
+./src/contexts/auth-context
+.tsx
+37:16  Error: 'error' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+
+./src/contexts/SpeechContex
+t.tsx
+22:52  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+26:13  Error: Use 
+"@ts-expect-error" instead 
+of "@ts-ignore", as 
+"@ts-ignore" will do 
+nothing if the following 
+line is error-free.  @types
+cript-eslint/ban-ts-comment
+44:55  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+50:56  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+
+./src/lib/api.ts
+195:72  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+196:19  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+199:65  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+200:19  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+221:18  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+262:51  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+263:19  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+270:13  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+271:19  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+291:46  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+292:19  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+
+./src/lib/useInterviewAudio
+.ts
+11:3  Error: 
+'silenceThreshold' is 
+assigned a value but never 
+used.  @typescript-eslint/n
+o-unused-vars
+28:67  Error: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+66:6  Warning: React Hook 
+useCallback has a missing 
+dependency: 
+'detectSilence'. Either 
+include it or remove the 
+dependency array.  
+react-hooks/exhaustive-deps
+125:6  Warning: React Hook 
+useEffect has a missing 
+dependency: 
+'stopRecording'. Either 
+include it or remove the 
+dependency array.  
+react-hooks/exhaustive-deps
+
+info  - Need to disable 
+some ESLint rules? Learn 
+more here: https://nextjs.o
+rg/docs/basic-features/esli
+nt#disabling-rules

@@ -5,11 +5,10 @@ import { motion } from "framer-motion";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Calendar, Target, Award } from "lucide-react";
+import { TrendingUp, Calendar, Target } from "lucide-react";
 import Link from "next/link";
 import { getSessions, type InterviewSession } from "@/lib/api";
 import { Navbar } from "@/components/layout/navbar";
-import { PerformanceChart } from "@/components/reports/performance-chart";
 
 export default function ReportsPage() {
   const [sessions, setSessions] = useState<InterviewSession[]>([]);
@@ -22,70 +21,17 @@ export default function ReportsPage() {
   async function loadSessions() {
     try {
       setLoading(true);
-      const data = await getSessions("user-123");
+      const data = await getSessions();
       setSessions(data);
     } catch (error) {
       console.error("Failed to load sessions:", error);
-      // Mock data for demo
-      setSessions([
-        {
-          id: "1",
-          userId: "user-123",
-          role: "Software Engineer",
-          level: "Senior",
-          status: "completed",
-          createdAt: new Date(Date.now() - 86400000 * 7).toISOString(),
-          completedAt: new Date(Date.now() - 86400000 * 7 + 3600000).toISOString(),
-          score: 75,
-        },
-        {
-          id: "2",
-          userId: "user-123",
-          role: "Software Engineer",
-          level: "Senior",
-          status: "completed",
-          createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
-          completedAt: new Date(Date.now() - 86400000 * 5 + 3600000).toISOString(),
-          score: 82,
-        },
-        {
-          id: "3",
-          userId: "user-123",
-          role: "Product Manager",
-          level: "Mid-Level",
-          status: "completed",
-          createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-          completedAt: new Date(Date.now() - 86400000 * 3 + 3600000).toISOString(),
-          score: 78,
-        },
-        {
-          id: "4",
-          userId: "user-123",
-          role: "Software Engineer",
-          level: "Senior",
-          status: "completed",
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
-          completedAt: new Date(Date.now() - 86400000 + 3600000).toISOString(),
-          score: 88,
-        },
-      ]);
+      setSessions([]);
     } finally {
       setLoading(false);
     }
   }
 
   const completedSessions = sessions.filter((s) => s.status === "completed");
-  const averageScore = completedSessions.length > 0
-    ? Math.round(
-        completedSessions.reduce((acc, s) => acc + (s.score || 0), 0) /
-          completedSessions.length
-      )
-    : 0;
-  
-  const improvement = completedSessions.length >= 2
-    ? (completedSessions[completedSessions.length - 1].score || 0) -
-      (completedSessions[0].score || 0)
-    : 0;
 
   return (
     <>
@@ -105,7 +51,7 @@ export default function ReportsPage() {
             </div>
 
             {/* Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -115,7 +61,7 @@ export default function ReportsPage() {
                   <CardHeader className="pb-3">
                     <CardDescription>Total Interviews</CardDescription>
                     <CardTitle className="text-3xl flex items-center">
-                      {completedSessions.length}
+                      {sessions.length}
                       <Calendar className="w-5 h-5 ml-2 text-muted-foreground" />
                     </CardTitle>
                   </CardHeader>
@@ -129,9 +75,9 @@ export default function ReportsPage() {
               >
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardDescription>Average Score</CardDescription>
+                    <CardDescription>Completed</CardDescription>
                     <CardTitle className="text-3xl flex items-center">
-                      {averageScore}
+                      {completedSessions.length}
                       <Target className="w-5 h-5 ml-2 text-muted-foreground" />
                     </CardTitle>
                   </CardHeader>
@@ -145,60 +91,15 @@ export default function ReportsPage() {
               >
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardDescription>Improvement</CardDescription>
+                    <CardDescription>In Progress</CardDescription>
                     <CardTitle className="text-3xl flex items-center">
-                      {improvement > 0 ? "+" : ""}
-                      {improvement}
-                      <TrendingUp
-                        className={`w-5 h-5 ml-2 ${
-                          improvement > 0 ? "text-green-500" : "text-muted-foreground"
-                        }`}
-                      />
-                    </CardTitle>
-                  </CardHeader>
-                </Card>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-              >
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardDescription>Best Score</CardDescription>
-                    <CardTitle className="text-3xl flex items-center">
-                      {Math.max(...completedSessions.map((s) => s.score || 0))}
-                      <Award className="w-5 h-5 ml-2 text-yellow-500" />
+                      {sessions.filter(s => s.status === 'in_progress').length}
+                      <TrendingUp className="w-5 h-5 ml-2 text-muted-foreground" />
                     </CardTitle>
                   </CardHeader>
                 </Card>
               </motion.div>
             </div>
-
-            {/* Performance Chart */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.5 }}
-              className="mb-12"
-            >
-              <Card>
-                <CardHeader>
-                  <CardTitle>Performance Over Time</CardTitle>
-                  <CardDescription>
-                    Your interview scores across different sessions
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    <Skeleton className="h-80 w-full" />
-                  ) : (
-                    <PerformanceChart sessions={completedSessions} />
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
 
             {/* Session History */}
             <div className="space-y-4">
@@ -214,49 +115,40 @@ export default function ReportsPage() {
                     </Card>
                   ))}
                 </div>
+              ) : sessions.length === 0 ? (
+                <Card>
+                  <CardContent className="p-8 text-center text-muted-foreground">
+                    No interviews yet. Start a practice session from the dashboard!
+                  </CardContent>
+                </Card>
               ) : (
                 <div className="space-y-4">
-                  {completedSessions.map((session, index) => (
+                  {sessions.map((session, index) => (
                     <motion.div
                       key={session.id}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3, delay: index * 0.1 }}
                     >
-                      <Link href={`/evaluation/${session.id}`}>
+                      <Link href={session.status === 'completed' ? `/evaluation/${session.id}` : `/interview/${session.id}`}>
                         <Card className="hover:shadow-lg transition-shadow cursor-pointer">
                           <CardHeader>
                             <div className="flex items-center justify-between">
                               <div>
                                 <CardTitle className="text-xl mb-2">
-                                  {session.role} - {session.level}
+                                  {session.role} at {session.company}
                                 </CardTitle>
                                 <CardDescription>
-                                  {new Date(session.createdAt).toLocaleDateString("en-US", {
+                                  {session.difficulty} • {new Date(session.createdAt).toLocaleDateString("en-US", {
                                     year: "numeric",
                                     month: "long",
                                     day: "numeric",
                                   })}
                                 </CardDescription>
                               </div>
-                              <div className="text-right">
-                                <div className="text-4xl font-bold text-primary mb-1">
-                                  {session.score}
-                                </div>
-                                <Badge
-                                  variant={
-                                    (session.score || 0) >= 80 ? "default" : "secondary"
-                                  }
-                                >
-                                  {(session.score || 0) >= 90
-                                    ? "Excellent"
-                                    : (session.score || 0) >= 80
-                                    ? "Very Good"
-                                    : (session.score || 0) >= 70
-                                    ? "Good"
-                                    : "Fair"}
-                                </Badge>
-                              </div>
+                              <Badge variant={session.status === 'completed' ? 'default' : 'secondary'}>
+                                {session.status}
+                              </Badge>
                             </div>
                           </CardHeader>
                         </Card>

@@ -1,13 +1,12 @@
 "use client";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ThumbsUp, AlertCircle } from "lucide-react";
-import type { Evaluation } from "@/lib/api";
+import type { QuestionFeedback } from "@/lib/api";
 
 interface FeedbackCardProps {
-  evaluation: Evaluation;
+  evaluation: QuestionFeedback;
   questionNumber: number;
 }
 
@@ -21,17 +20,17 @@ export function FeedbackCard({ evaluation, questionNumber }: FeedbackCardProps) 
               Question {questionNumber}
             </CardTitle>
             <p className="text-sm text-muted-foreground mb-4">
-              {evaluation.feedback}
+              {evaluation.detailedFeedback}
             </p>
           </div>
           <div className="text-right ml-4">
             <div className="text-3xl font-bold text-primary mb-1">
-              {evaluation.score}
+              {evaluation.score}/10
             </div>
             <div className="text-xs text-muted-foreground">Score</div>
           </div>
         </div>
-        <Progress value={evaluation.score} className="h-2" />
+        <Progress value={evaluation.score * 10} className="h-2" />
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

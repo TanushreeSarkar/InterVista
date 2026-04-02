@@ -44,7 +44,7 @@ export default function AboutPage() {
           >
             <h1 className="text-5xl font-bold mb-6">About InterVista</h1>
             <p className="text-xl text-muted-foreground">
-              We're on a mission to help everyone ace their interviews with AI-powered practice
+              We&apos;re on a mission to help everyone ace their interviews with AI-powered practice
             </p>
           </motion.div>
 
@@ -60,7 +60,7 @@ export default function AboutPage() {
                 <p className="text-muted-foreground mb-4">
                   InterVista was founded by a team of engineers and career coaches who experienced
                   firsthand the challenges of interview preparation. We realized that traditional
-                  methods weren't enough in today's competitive job market.
+                  methods weren&apos;t enough in today&apos;s competitive job market.
                 </p>
                 <p className="text-muted-foreground mb-4">
                   By combining artificial intelligence with proven interview techniques, we created
@@ -68,7 +68,7 @@ export default function AboutPage() {
                   feedback.
                 </p>
                 <p className="text-muted-foreground">
-                  Today, we're proud to help thousands of job seekers prepare for their dream roles
+                  Today, we&apos;re proud to help thousands of job seekers prepare for their dream roles
                   and land offers at top companies worldwide.
                 </p>
               </CardContent>
@@ -109,8 +109,8 @@ export default function AboutPage() {
               <CardContent className="p-8">
                 <h2 className="text-2xl font-bold mb-4">Join Us</h2>
                 <p className="text-muted-foreground mb-4">
-                  We're always looking for talented individuals to join our team. If you're
-                  passionate about helping people succeed in their careers, we'd love to hear from
+                  We&apos;re always looking for talented individuals to join our team. If you&apos;re
+                  passionate about helping people succeed in their careers, we&apos;d love to hear from
                   you.
                 </p>
                 <a href="/careers" className="text-primary hover:underline font-medium">

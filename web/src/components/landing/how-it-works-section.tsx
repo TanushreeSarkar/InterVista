@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { motion, useInView } from "framer-motion";
-import { gsap } from "gsap";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { UserPlus, Mic, Brain, TrendingUp } from "lucide-react";
+import { useRef } from "react";
 
 const steps = [
   {

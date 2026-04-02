@@ -26,7 +26,7 @@ export function ZoomInterviewLayout({
   const [isMicOn, setIsMicOn] = useState(true);
   const [isVideoOn, setIsVideoOn] = useState(true);
   const [showTranscript, setShowTranscript] = useState(false);
-  const [transcript, setTranscript] = useState<Array<{ speaker: string; text: string; timestamp: string }>>([
+  const [transcript] = useState<Array<{ speaker: string; text: string; timestamp: string }>>([
     {
       speaker: "AI Interviewer",
       text: question,

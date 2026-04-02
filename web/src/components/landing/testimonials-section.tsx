@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
@@ -65,10 +66,12 @@ export function TestimonialsSection() {
               <Card className="h-full hover:shadow-xl transition-shadow duration-300 border-2 hover:border-primary/50">
                 <CardContent className="pt-6">
                   <div className="flex items-center mb-4">
-                    <img
+                    <Image
                       src={testimonial.avatar}
                       alt={testimonial.name}
-                      className="w-12 h-12 rounded-full mr-4"
+                      width={48}
+                      height={48}
+                      className="rounded-full mr-4 object-cover"
                     />
                     <div>
                       <div className="font-semibold">{testimonial.name}</div>

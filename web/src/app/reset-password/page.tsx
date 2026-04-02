@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { Loader2, Mail, ArrowLeft, CheckCircle } from "lucide-react";
+import * as api from "@/lib/api";
 
 export default function ResetPasswordPage() {
   const [email, setEmail] = useState("");
@@ -22,20 +23,10 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:4000/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to send reset email");
-      }
-
+      await api.resetPassword(email);
       setSuccess(true);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -87,7 +78,7 @@ export default function ResetPasswordPage() {
               <CardHeader>
                 <CardTitle>Reset Password</CardTitle>
                 <CardDescription>
-                  We'll send you a link to reset your password
+                  We&apos;ll send you a link to reset your password
                 </CardDescription>
               </CardHeader>
               <CardContent>

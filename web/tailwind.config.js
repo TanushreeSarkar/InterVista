@@ -20,11 +20,20 @@ module.exports = {
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
+        offwhite: "#F8FAFC",
         foreground: "hsl(var(--foreground))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
         },
+        coral: {
+          DEFAULT: "hsl(var(--primary))",
+          50: "hsl(var(--primary) / 0.1)",
+          100: "hsl(var(--primary) / 0.2)",
+          500: "hsl(var(--primary))",
+          600: "hsl(var(--primary) / 0.8)",
+        },
+        offwhite: "#F8FAFC",
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",

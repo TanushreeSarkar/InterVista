@@ -32,8 +32,8 @@ export default function MaintenancePage() {
           <h1 className="text-4xl font-bold mb-4">Under Maintenance</h1>
 
           <p className="text-xl text-muted-foreground mb-8">
-            We're currently performing scheduled maintenance to improve your experience.
-            We'll be back shortly!
+            We&apos;re currently performing scheduled maintenance to improve your experience.
+            We&apos;ll be back shortly!
           </p>
 
           <div className="flex items-center justify-center gap-2 text-muted-foreground">

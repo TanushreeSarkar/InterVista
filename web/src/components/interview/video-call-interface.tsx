@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,10 +12,8 @@ import {
   Video,
   VideoOff,
   PhoneOff,
-  MessageSquare,
   Volume2,
   VolumeX,
-  Maximize2,
   User,
 } from "lucide-react";
 import { submitAnswer } from "@/lib/api";
@@ -44,7 +42,6 @@ export function VideoCallInterface({
   const [silenceTimer, setSilenceTimer] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [showTranscript, setShowTranscript] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -55,6 +52,7 @@ export function VideoCallInterface({
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    const timeoutRef = silenceTimeoutRef.current;
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
@@ -62,8 +60,8 @@ export function VideoCallInterface({
       if (audioContextRef.current) {
         audioContextRef.current.close();
       }
-      if (silenceTimeoutRef.current) {
-        clearTimeout(silenceTimeoutRef.current);
+      if (timeoutRef) {
+        clearTimeout(timeoutRef);
       }
       if (recordingIntervalRef.current) {
         clearInterval(recordingIntervalRef.current);
@@ -137,7 +135,7 @@ export function VideoCallInterface({
       if (average < 5) {
         setSilenceTimer((prev) => {
           const newValue = prev + 0.1;
-          
+
           // Auto-advance after 6 seconds of silence
           if (newValue >= 6) {
             stopRecording();
@@ -161,7 +159,7 @@ export function VideoCallInterface({
       setIsRecording(false);
       setIsMicOn(false);
       setSilenceTimer(0);
-      
+
       if (recordingIntervalRef.current) {
         clearInterval(recordingIntervalRef.current);
       }
@@ -173,9 +171,11 @@ export function VideoCallInterface({
       await submitAnswer({
         sessionId,
         questionId: `q${questionNumber}`,
+        questionIndex: questionNumber - 1,
+        text: '',
         audioBlob,
       });
-      
+
       // Wait a moment then move to next question
       setTimeout(() => {
         if (questionNumber < totalQuestions) {
@@ -250,7 +250,7 @@ export function VideoCallInterface({
                 <User className="w-24 h-24 text-white" />
               </motion.div>
             </div>
-            
+
             {/* AI Label */}
             <div className="absolute bottom-6 left-6 bg-black/80 backdrop-blur-sm px-4 py-2 rounded-full flex items-center space-x-2">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
@@ -320,7 +320,7 @@ export function VideoCallInterface({
         <div className="container mx-auto">
           <div className="max-w-4xl mx-auto">
             <h3 className="text-2xl font-bold mb-4 text-center">{question}</h3>
-            
+
             {isRecording && silenceTimer > 0 && (
               <div className="text-center">
                 <p className="text-sm text-muted-foreground mb-2">

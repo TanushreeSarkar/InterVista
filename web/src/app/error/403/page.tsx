@@ -35,7 +35,7 @@ export default function ForbiddenPage() {
           <h2 className="text-3xl font-bold mb-4">Access Forbidden</h2>
 
           <p className="text-xl text-muted-foreground mb-8">
-            You don't have permission to access this resource.
+            You don&apos;t have permission to access this resource.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

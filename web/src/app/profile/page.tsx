@@ -8,36 +8,90 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { User, Mail, Briefcase, Calendar, Edit2, Save } from "lucide-react";
+import { User, Mail, Briefcase, Calendar, Edit2, Save, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
+import * as api from "@/lib/api";
+import toast from "react-hot-toast";
 
 export default function ProfilePage() {
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState({
     name: "",
     email: "",
-    role: "",
-    joined: "",
+    bio: "",
+    targetRole: "",
+    targetCompany: "",
+    createdAt: "",
+  });
+
+  const [stats, setStats] = useState({
+    totalSessions: 0,
+    averageScore: 0,
+    completedSessions: 0,
   });
 
   useEffect(() => {
-    const user = localStorage.getItem("user");
-    if (user) {
-      const userData = JSON.parse(user);
-      setProfile({
-        name: userData.name || "",
-        email: userData.email || "",
-        role: "Software Engineer",
-        joined: new Date().toLocaleDateString(),
-      });
-    }
-  }, []);
+    async function loadProfile() {
+      try {
+        const [profileData, analyticsData] = await Promise.all([
+          api.getProfile(),
+          api.getAnalyticsOverview().catch(() => null),
+        ]);
 
-  const handleSave = () => {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    user.name = profile.name;
-    localStorage.setItem("user", JSON.stringify(user));
-    setIsEditing(false);
-    alert("Profile updated successfully!");
+        setProfile({
+          name: profileData.name || "",
+          email: profileData.email || "",
+          bio: profileData.bio || "",
+          targetRole: profileData.targetRole || "",
+          targetCompany: profileData.targetCompany || "",
+          createdAt: profileData.createdAt
+            ? new Date(profileData.createdAt).toLocaleDateString()
+            : "",
+        });
+
+        if (analyticsData) {
+          setStats({
+            totalSessions: analyticsData.totalSessions,
+            averageScore: analyticsData.averageScore,
+            completedSessions: analyticsData.completedSessions,
+          });
+        }
+      } catch {
+        // If profile fails, use auth context user as fallback
+        if (user) {
+          setProfile((prev) => ({
+            ...prev,
+            name: user.name,
+            email: user.email,
+          }));
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProfile();
+  }, [user]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api.updateProfile({
+        name: profile.name,
+        bio: profile.bio,
+        targetRole: profile.targetRole,
+        targetCompany: profile.targetCompany,
+      });
+      toast.success("Profile updated successfully!");
+      setIsEditing(false);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to update profile");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const initials = profile.name
@@ -65,14 +119,11 @@ export default function ProfilePage() {
                 <CardContent className="p-6 text-center">
                   <Avatar className="w-32 h-32 mx-auto mb-4">
                     <AvatarFallback className="text-4xl bg-gradient-to-br from-primary to-secondary text-white">
-                      {initials}
+                      {initials || "?"}
                     </AvatarFallback>
                   </Avatar>
-                  <h2 className="text-2xl font-bold mb-2">{profile.name}</h2>
-                  <p className="text-muted-foreground mb-4">{profile.role}</p>
-                  <Button variant="outline" className="w-full">
-                    Change Photo
-                  </Button>
+                  <h2 className="text-2xl font-bold mb-2">{profile.name || "Loading..."}</h2>
+                  <p className="text-muted-foreground mb-4">{profile.targetRole || "Set your target role"}</p>
                 </CardContent>
               </Card>
 
@@ -83,17 +134,14 @@ export default function ProfilePage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => (isEditing ? handleSave() : setIsEditing(true))}
+                    disabled={saving}
                   >
-                    {isEditing ? (
-                      <>
-                        <Save className="w-4 h-4 mr-2" />
-                        Save
-                      </>
+                    {saving ? (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving</>
+                    ) : isEditing ? (
+                      <><Save className="w-4 h-4 mr-2" /> Save</>
                     ) : (
-                      <>
-                        <Edit2 className="w-4 h-4 mr-2" />
-                        Edit
-                      </>
+                      <><Edit2 className="w-4 h-4 mr-2" /> Edit</>
                     )}
                   </Button>
                 </CardHeader>
@@ -125,14 +173,15 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="role">Target Role</Label>
+                    <Label htmlFor="targetRole">Target Role</Label>
                     <div className="flex items-center space-x-2">
                       <Briefcase className="w-4 h-4 text-muted-foreground" />
                       <Input
-                        id="role"
-                        value={profile.role}
-                        onChange={(e) => setProfile({ ...profile, role: e.target.value })}
+                        id="targetRole"
+                        value={profile.targetRole}
+                        onChange={(e) => setProfile({ ...profile, targetRole: e.target.value })}
                         disabled={!isEditing}
+                        placeholder="e.g. Software Engineer"
                       />
                     </div>
                   </div>
@@ -141,7 +190,7 @@ export default function ProfilePage() {
                     <Label>Member Since</Label>
                     <div className="flex items-center space-x-2">
                       <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <Input value={profile.joined} disabled />
+                      <Input value={profile.createdAt || "—"} disabled />
                     </div>
                   </div>
                 </CardContent>
@@ -155,16 +204,16 @@ export default function ProfilePage() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="text-center">
-                    <div className="text-4xl font-bold text-primary mb-2">0</div>
+                    <div className="text-4xl font-bold text-primary mb-2">{stats.totalSessions}</div>
                     <div className="text-sm text-muted-foreground">Total Interviews</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-4xl font-bold text-primary mb-2">0</div>
+                    <div className="text-4xl font-bold text-primary mb-2">{stats.averageScore}</div>
                     <div className="text-sm text-muted-foreground">Average Score</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-4xl font-bold text-primary mb-2">0h</div>
-                    <div className="text-sm text-muted-foreground">Practice Time</div>
+                    <div className="text-4xl font-bold text-primary mb-2">{stats.completedSessions}</div>
+                    <div className="text-sm text-muted-foreground">Completed</div>
                   </div>
                 </div>
               </CardContent>

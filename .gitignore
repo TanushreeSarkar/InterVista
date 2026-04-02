@@ -1,11 +1,44 @@
+# Dependencies
 node_modules/
 **/node_modules/
+
+# Build outputs
 .next/
+out/
 dist/
 build/
 .vercel/
+
+# Environment files (NEVER commit secrets)
 .env
-.env.local
+.env.*
+!.env.example
+!.env.local.example
+
+# Firebase credentials
+serviceAccountKey.json
+**/serviceAccountKey.json
+
+# Uploads and logs (runtime data)
+**/uploads/*
+!**/uploads/.gitkeep
+**/logs/*
+!**/logs/.gitkeep
+
+# TypeScript build info
 tsconfig.tsbuildinfo
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# IDE
 .vscode/
+
+# Certificates / keys
+*.pem
+*.key
+
+# Logs
+*.log
+npm-debug.log*

@@ -56,7 +56,6 @@ export function AudioRecorder({
     stopListening,
     resetTranscript,
     transcript,
-    isListening: isListeningSpeech,
   } = useSpeech();
 
   async function startRecording() {
@@ -160,8 +159,9 @@ export function AudioRecorder({
       await submitAnswer({
         sessionId,
         questionId,
+        questionIndex: 0,
+        text: transcript || '',
         audioBlob,
-        transcript, // Send transcript
       });
       onRecordingComplete(questionId, audioBlob);
       resetTranscript();
