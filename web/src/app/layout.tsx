@@ -1,17 +1,9 @@
-import type { Metadata } from "next";
-import { GeistSans } from "geist/font/sans";
-import "./globals.css";
 import { ClientProviders } from "@/components/client-providers";
 
-export const metadata: Metadata = {
-  title: "InterVista - AI-Powered Mock Interviews",
-  description: "The ultimate audio-first mock interview platform powered by AI",
-};
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={GeistSans.className}>
+    <html lang="en">
+      <body>
         <ClientProviders>
           {children}
         </ClientProviders>
