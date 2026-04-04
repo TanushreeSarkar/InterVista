@@ -16,7 +16,6 @@ export async function createSession(
     const userId = req.user!.sub;
     const { role, company, difficulty, personaId, questionBankId } = req.body;
 
-    // Sanitize string inputs (validated by zod, now sanitize HTML)
     const sanitized = sanitizeFields({ role, company }, ['role', 'company']);
 
     let questionTexts: string[];
