@@ -70,13 +70,13 @@ export async function getOverview(
     const sessionDates = new Set(
       sessions.map((s) => {
         const d = s.createdAt?.toDate?.() || new Date();
-        return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       })
     );
     for (let i = 0; i < 365; i++) {
       const checkDate = new Date(today);
       checkDate.setDate(checkDate.getDate() - i);
-      const key = `${checkDate.getFullYear()}-${checkDate.getMonth()}-${checkDate.getDate()}`;
+      const key = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
       if (sessionDates.has(key)) {
         streak++;
       } else if (i > 0) {

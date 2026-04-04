@@ -5,6 +5,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import mongoSanitize from 'express-mongo-sanitize';
 import path from 'path';
 import rateLimit from 'express-rate-limit';
 import http from 'http';
@@ -80,6 +81,7 @@ app.use(
 
 // ─── Cookie parser ─────────────────────────────────────────
 app.use(cookieParser());
+app.use(mongoSanitize({ replaceWith: '_' }));
 
 // ─── Body parsers ──────────────────────────────────────────
 app.use(express.json({ limit: '1mb' }));

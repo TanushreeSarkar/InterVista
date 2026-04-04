@@ -5,6 +5,13 @@ import { JwtPayload } from '../types/types';
 import { generateQuickFeedback } from './ai';
 import logger from './logger';
 
+function parseCookieHeader(cookieStr: string, name: string): string | null {
+  if (!cookieStr) return null;
+  const match = cookieStr.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  if (match) return match[2];
+  return null;
+}
+
 let io: SocketIOServer | null = null;
 
 export function initSocketIO(httpServer: HttpServer, corsOrigins: string[]): SocketIOServer {
@@ -17,7 +24,10 @@ export function initSocketIO(httpServer: HttpServer, corsOrigins: string[]): Soc
 
   // JWT authentication middleware for WebSocket
   io.use((socket, next) => {
-    const token = socket.handshake.auth?.token;
+    const cookie = socket.handshake.headers.cookie;
+    if (!cookie) return next(new Error('Authentication required'));
+    const token = parseCookieHeader(cookie, 'intervista_session');
+    
     if (!token) {
       return next(new Error('Authentication required'));
     }

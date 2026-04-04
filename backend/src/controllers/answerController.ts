@@ -5,6 +5,7 @@ import multer from 'multer';
 import { getDb, getFieldValue } from '../db/firestore';
 import { AuthRequest } from '../types/types';
 import { evaluateAnswers } from '../lib/ai';
+import { submitAnswerSchema } from '../validators';
 import { transcribeAudio } from '../lib/transcribe';
 import { emitAnswerFeedback, emitEvaluationReady } from '../lib/socketHandler';
 import { sendSessionCompleteEmail } from '../lib/email';
@@ -45,6 +46,35 @@ const fileFilter = (
   }
 };
 
+import { readFileSync, unlinkSync } from 'fs';
+
+function validateAudioMagicBytes(filePath: string): boolean {
+  try {
+    const buffer = Buffer.alloc(12);
+    const fd = fs.openSync(filePath, 'r');
+    fs.readSync(fd, buffer, 0, 12, 0);
+    fs.closeSync(fd);
+
+    const hex = buffer.toString('hex').toUpperCase();
+
+    const allowedSignatures = [
+      '1A45DFA3', // WebM or MKV
+      '000000', // Start of MP4 (often 00 00 00 18 or 00 00 00 20) with ftyp
+      '494433', // MP3 with ID3
+      'FFFB', // MP3 without ID3
+      'FFF3', // MP3 without ID3
+      'FFF2', // MP3 without ID3
+      '52494646', // WAV (RIFF)
+      '4F676753', // OGG
+    ];
+
+    return allowedSignatures.some(sig => hex.startsWith(sig)) || buffer.toString('ascii').includes('ftyp');
+  } catch (err) {
+    logger.error('Magic byte validation error', err);
+    return false;
+  }
+}
+
 export const upload = multer({
   storage,
   limits: { fileSize: 25 * 1024 * 1024 }, // 25MB
@@ -59,7 +89,9 @@ export async function submitAnswer(
 ): Promise<void> {
   try {
     const userId = req.user!.sub;
-    const { sessionId, questionId, questionIndex, text } = req.body;
+    
+    const validatedData = submitAnswerSchema.parse(req.body);
+    const { sessionId, questionId, questionIndex, text } = validatedData;
 
     const sessionDoc = await getDb().collection('sessions').doc(sessionId).get();
     if (!sessionDoc.exists) { res.status(404).json({ error: 'Session not found.' }); return; }
@@ -72,13 +104,19 @@ export async function submitAnswer(
     }
 
     const answerData: Record<string, any> = {
-      sessionId, questionId, questionIndex: parseInt(questionIndex) || 0,
+      sessionId, questionId, questionIndex,
       userId, text: answerText,
       createdAt: getFieldValue().serverTimestamp(), updatedAt: getFieldValue().serverTimestamp(),
     };
 
     // If audio uploaded, save path and auto-transcribe if no text provided
     if (req.file) {
+      if (!validateAudioMagicBytes(req.file.path)) {
+        unlinkSync(req.file.path);
+        res.status(415).json({ error: 'Invalid file content: Magic byte mismatch.' });
+        return;
+      }
+
       answerData.audioPath = req.file.path;
       answerData.audioFilename = req.file.filename;
 
@@ -102,7 +140,7 @@ export async function submitAnswer(
     const personaId = sessionDoc.data()!.personaId;
 
     // Fire and forget — don't await
-    emitAnswerFeedback(userId, sessionId, questionText, answerText, parseInt(questionIndex) || 0, personaId).catch(() => {});
+    emitAnswerFeedback(userId, sessionId, questionText, answerText, questionIndex, personaId).catch(() => {});
 
     res.status(201).json({
       data: {
@@ -134,6 +172,8 @@ export async function getEvaluation(
     if (!sessionDoc.exists) { res.status(404).json({ error: 'Session not found.' }); return; }
     if (sessionDoc.data()!.userId !== userId) { res.status(403).json({ error: 'Forbidden.' }); return; }
 
+    const status = sessionDoc.data()!.status;
+
     // Check if evaluation exists
     const existingEval = await getDb().collection('evaluations').where('sessionId', '==', sessionId).limit(1).get();
     if (!existingEval.empty) {
@@ -143,6 +183,19 @@ export async function getEvaluation(
       return;
     }
 
+    if (status === 'evaluating') {
+      res.status(202).json({ status: 'evaluating', message: 'Evaluation in progress' });
+      return;
+    }
+    
+    if (status === 'evaluation_failed') {
+      res.status(500).json({ error: 'Evaluation failed, please retry' });
+      return;
+    }
+
+    // Set to evaluating and start background processing
+    await getDb().collection('sessions').doc(sessionId).update({ status: 'evaluating', updatedAt: getFieldValue().serverTimestamp() });
+
     const questionsSnapshot = await getDb().collection('questions').where('sessionId', '==', sessionId).orderBy('index', 'asc').get();
     const questions = questionsSnapshot.docs.map((doc) => doc.data().text as string);
 
@@ -150,34 +203,60 @@ export async function getEvaluation(
     const answers = answersSnapshot.docs.map((doc) => doc.data().text as string);
 
     const personaId = sessionDoc.data()!.personaId;
-    const evaluation = await evaluateAnswers(questions, answers, personaId);
+    const role = sessionDoc.data()!.role || 'Candidate';
+    const company = sessionDoc.data()!.company || 'Company';
+    const difficulty = sessionDoc.data()!.difficulty || 'Medium';
 
-    const evalRef = getDb().collection('evaluations').doc();
-    const evalData = {
-      sessionId, userId, ...evaluation,
-      createdAt: getFieldValue().serverTimestamp(), updatedAt: getFieldValue().serverTimestamp(),
-    };
-    await evalRef.set(evalData);
+    // Background execution
+    evaluateAnswers(questions, answers, role, company, difficulty, personaId)
+      .then(async (evaluation) => {
+        const evalRef = getDb().collection('evaluations').doc();
+        const evalData = {
+          sessionId, userId, ...evaluation,
+          createdAt: getFieldValue().serverTimestamp(), updatedAt: getFieldValue().serverTimestamp(),
+        };
+        await evalRef.set(evalData);
+        await getDb().collection('sessions').doc(sessionId).update({ status: 'completed', updatedAt: getFieldValue().serverTimestamp() });
+        emitEvaluationReady(userId, sessionId, evaluation.overallScore);
 
-    await getDb().collection('sessions').doc(sessionId).update({ status: 'completed', updatedAt: getFieldValue().serverTimestamp() });
+        // Send email
+        try {
+          const userDoc = await getDb().collection('users').doc(userId).get();
+          if (userDoc.exists && process.env.SMTP_USER && process.env.SMTP_PASS) {
+            const userData = userDoc.data()!;
+            sendSessionCompleteEmail(
+              userData.email, userData.name, sessionDoc.data()!.role,
+              evaluation.overallScore, evaluation.recommendation
+            ).catch((err) => logger.error('Failed to send evaluation email', err));
+          }
+        } catch (emailErr) {
+          logger.error('Email notification error', emailErr);
+        }
+      })
+      .catch(async (err) => {
+        logger.error('Evaluation failed in background', err);
+        await getDb().collection('sessions').doc(sessionId).update({ status: 'evaluation_failed', updatedAt: getFieldValue().serverTimestamp() });
+      });
 
-    // Emit evaluation ready via WebSocket
-    emitEvaluationReady(userId, sessionId, evaluation.overallScore);
+    res.status(202).json({ status: 'evaluating', message: 'Evaluation in progress' });
+  } catch (error) { next(error); }
+}
 
-    // Send email notification (fire and forget)
-    try {
-      const userDoc = await getDb().collection('users').doc(userId).get();
-      if (userDoc.exists && process.env.SMTP_USER && process.env.SMTP_PASS) {
-        const userData = userDoc.data()!;
-        sendSessionCompleteEmail(
-          userData.email, userData.name, sessionDoc.data()!.role,
-          evaluation.overallScore, evaluation.recommendation
-        ).catch((err) => logger.error('Failed to send evaluation email', err));
-      }
-    } catch (emailErr) {
-      logger.error('Email notification error', emailErr);
-    }
-
-    res.json({ data: { id: evalRef.id, ...evalData, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } });
+/**
+ * POST /api/answers/evaluation/:sessionId/retry
+ */
+export async function retryEvaluation(
+  req: AuthRequest, res: Response, next: NextFunction
+): Promise<void> {
+  try {
+    const userId = req.user!.sub;
+    const sessionId = req.params.sessionId as string;
+    
+    const sessionDoc = await getDb().collection('sessions').doc(sessionId).get();
+    if (!sessionDoc.exists) { res.status(404).json({ error: 'Session not found.' }); return; }
+    if (sessionDoc.data()!.userId !== userId) { res.status(403).json({ error: 'Forbidden.' }); return; }
+    
+    await getDb().collection('sessions').doc(sessionId).update({ status: 'pending', updatedAt: getFieldValue().serverTimestamp() });
+    res.json({ data: { message: 'Evaluation retry triggered' } });
   } catch (error) { next(error); }
 }

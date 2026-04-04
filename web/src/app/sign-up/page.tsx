@@ -11,15 +11,35 @@ import { Separator } from "@/components/ui/separator";
 import { Logo } from "@/components/ui/logo";
 import { Loader2, Mail, Lock, User, ArrowRight } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
+import { useRouter } from "next/navigation";
+import { signInWithGoogle, signInWithGitHub } from "@/lib/oauthHelpers";
 
 export default function SignUpPage() {
-  const { signUp } = useAuth();
+  const { signUp, setUser } = useAuth();
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<"google" | "github" | "">("");
   const [error, setError] = useState("");
+
+  const handleOAuth = async (provider: "google" | "github") => {
+    try {
+      setOauthLoading(provider);
+      setError("");
+      const result = (provider === "google" ? await signInWithGoogle() : await signInWithGitHub()) as { user?: any };
+      if (result.user) {
+        setUser(result.user);
+        router.push("/dashboard");
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : `Failed to sign in with ${provider}`);
+    } finally {
+      setOauthLoading("");
+    }
+  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -167,10 +187,12 @@ export default function SignUpPage() {
             </div>
 
             <div className="space-y-2">
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full" onClick={() => handleOAuth("google")} disabled={!!oauthLoading || loading}>
+                {oauthLoading === "google" ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                 Continue with Google
               </Button>
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full" onClick={() => handleOAuth("github")} disabled={!!oauthLoading || loading}>
+                {oauthLoading === "github" ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                 Continue with GitHub
               </Button>
             </div>

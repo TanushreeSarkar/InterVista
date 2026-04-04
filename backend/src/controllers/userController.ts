@@ -27,6 +27,12 @@ export async function getProfile(
         bio: data.bio || '',
         targetRole: data.targetRole || '',
         targetCompany: data.targetCompany || '',
+        preferences: data.preferences || {
+          emailNotifications: true,
+          pushNotifications: false,
+          language: 'en',
+          timezone: 'UTC',
+        },
         createdAt: data.createdAt?.toDate?.()?.toISOString?.() || null,
       },
     });
@@ -57,6 +63,32 @@ export async function updateProfile(
 
     await getDb().collection('users').doc(userId).update(updates);
     res.json({ data: { message: 'Profile updated.' } });
+  } catch (error) { next(error); }
+}
+
+/**
+ * PUT /api/users/preferences
+ */
+export async function updatePreferences(
+  req: AuthRequest, res: Response, next: NextFunction
+): Promise<void> {
+  try {
+    const userId = req.user!.sub;
+    const { emailNotifications, pushNotifications, language, timezone } = req.body;
+
+    const preferences = {
+      emailNotifications: Boolean(emailNotifications),
+      pushNotifications: Boolean(pushNotifications),
+      language: language || 'en',
+      timezone: timezone || 'UTC',
+    };
+
+    await getDb().collection('users').doc(userId).update({
+      preferences,
+      updatedAt: getFieldValue().serverTimestamp(),
+    });
+
+    res.json({ data: { message: 'Preferences updated.' } });
   } catch (error) { next(error); }
 }
 

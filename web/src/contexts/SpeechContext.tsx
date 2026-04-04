@@ -24,52 +24,70 @@ export function SpeechProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            // @ts-expect-error - SpeechRecognition is not in all browser type definitions
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-            if (SpeechRecognition) {
-                const recognitionInstance = new SpeechRecognition();
-                recognitionInstance.continuous = true;
-                recognitionInstance.interimResults = true;
-                recognitionInstance.lang = 'en-US'; // Default to English
-
-                recognitionInstance.onstart = () => {
-                    setIsListening(true);
-                    setError(null);
-                };
-
-                recognitionInstance.onend = () => {
-                    setIsListening(false);
-                };
-
-                recognitionInstance.onerror = (event: any) => {
-                    console.error('Speech recognition error', event.error);
-                    setError(event.error);
-                    setIsListening(false);
-                };
-
-                recognitionInstance.onresult = (event: any) => {
-                    let final = '';
-                    let interim = '';
-
-                    for (let i = event.resultIndex; i < event.results.length; ++i) {
-                        if (event.results[i].isFinal) {
-                            final += event.results[i][0].transcript;
-                        } else {
-                            interim += event.results[i][0].transcript;
-                        }
-                    }
-
-                    if (final) {
-                        setTranscript((prev) => prev + ' ' + final);
-                    }
-                    setInterimTranscript(interim);
-                };
-
-                setRecognition(recognitionInstance);
-            } else {
-                setError('Browser does not support speech recognition.');
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                setError('Microphone access denied or not available. Please check your browser settings.');
+                return;
             }
+
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then((stream) => {
+                    stream.getTracks().forEach(track => track.stop());
+
+                    // @ts-expect-error - SpeechRecognition is not in all browser type definitions
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+                    if (SpeechRecognition) {
+                        const recognitionInstance = new SpeechRecognition();
+                        recognitionInstance.continuous = true;
+                        recognitionInstance.interimResults = true;
+                        recognitionInstance.lang = 'en-US'; // Default to English
+
+                        recognitionInstance.onstart = () => {
+                            setIsListening(true);
+                            setError(null);
+                        };
+
+                        recognitionInstance.onend = () => {
+                            setIsListening(false);
+                        };
+
+                        recognitionInstance.onerror = (event: any) => {
+                            console.error('Speech recognition error', event.error);
+                            if (event.error === 'not-allowed' || event.error === 'audio-capture') {
+                                setError('Microphone access denied or not available. Please check your browser settings.');
+                            } else {
+                                setError(event.error);
+                            }
+                            setIsListening(false);
+                        };
+
+                        recognitionInstance.onresult = (event: any) => {
+                            let final = '';
+                            let interim = '';
+
+                            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                                if (event.results[i].isFinal) {
+                                    final += event.results[i][0].transcript;
+                                } else {
+                                    interim += event.results[i][0].transcript;
+                                }
+                            }
+
+                            if (final) {
+                                setTranscript((prev) => prev + ' ' + final);
+                            }
+                            setInterimTranscript(interim);
+                        };
+
+                        setRecognition(recognitionInstance);
+                    } else {
+                        setError('Browser does not support speech recognition.');
+                    }
+                })
+                .catch((err) => {
+                    console.error('Microphone permission error', err);
+                    setError('Microphone access denied or not available. Please check your browser settings.');
+                });
         }
     }, []);
 

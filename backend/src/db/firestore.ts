@@ -23,3 +23,4 @@ function initFirebase() {
 
 export const getDb = () => initFirebase()
 export const getFieldValue = () => admin.firestore.FieldValue
+export const getAdmin = () => { initFirebase(); return admin; }

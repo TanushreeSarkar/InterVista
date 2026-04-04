@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { gsap } from "gsap";
 import { Mic, Sparkles } from "lucide-react";
 import Link from "next/link";
+import CountUp from "react-countup";
 
 export function HeroSection() {
   const heroRef = useRef<HTMLDivElement>(null);
@@ -115,17 +116,17 @@ export function HeroSection() {
             ref={titleRef}
             className="text-5xl md:text-7xl font-bold leading-tight"
           >
-            Master Your Next
+            Prep Smarter,
             <br />
-            <span className="text-primary">Interview</span> with AI
+            Get
+            <span className="text-primary"> Hired</span> faster with AI
           </h1>
 
           <p
             ref={subtitleRef}
             className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto"
           >
-            Practice with realistic AI-powered mock interviews. Get instant
-            feedback, detailed analysis, and improve your performance.
+            Experience realistic mock interviews tailored to your role. Get real-time data on your performance and refine your pitch until it&apos;s perfect.
           </p>
 
           <div ref={ctaRef} className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -142,26 +143,40 @@ export function HeroSection() {
             </Button>
           </div>
 
-          {/* Stats */}
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 1 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-16"
-          >
-            <div className="space-y-2">
-              <div className="text-4xl font-bold text-primary">10K+</div>
-              <div className="text-sm text-muted-foreground">Interviews Conducted</div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-4xl font-bold text-primary">95%</div>
-              <div className="text-sm text-muted-foreground">Success Rate</div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-4xl font-bold text-primary">24/7</div>
-              <div className="text-sm text-muted-foreground">AI Availability</div>
-            </div>
-          </motion.div>
+              {/* Stats */}
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 1 }}
+                className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-16"
+              >
+                <div className="space-y-2 text-center">
+                  <div className="text-4xl font-bold text-primary">
+                    <CountUp end={10000} duration={2} separator="," />+
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Interviews Conducted
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-center">
+                  <div className="text-4xl font-bold text-primary">
+                    <CountUp end={95} duration={2} />%
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Success Rate
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-center">
+                  <div className="text-4xl font-bold text-primary">
+                    <CountUp end={24} duration={2} />/7
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    AI Availability
+                  </div>
+                </div>
+              </motion.div>
         </div>
       </div>
     </section>

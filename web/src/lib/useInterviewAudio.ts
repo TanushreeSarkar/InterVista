@@ -11,6 +11,9 @@ export function useInterviewAudio({
 }: UseInterviewAudioProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false); // User is speaking?
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [transcript] = useState<string | null>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -19,6 +22,8 @@ export function useInterviewAudio({
   const audioChunksRef = useRef<Blob[]>([]);
 
   const startRecording = useCallback(async () => {
+    setAudioBlob(null);
+    setAudioUrl(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
@@ -48,8 +53,10 @@ export function useInterviewAudio({
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        onSilenceDetected(audioBlob);
+        const resultBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        setAudioBlob(resultBlob);
+        setAudioUrl(URL.createObjectURL(resultBlob));
+        onSilenceDetected(resultBlob);
         audioChunksRef.current = [];
         // Stop all tracks
         stream.getTracks().forEach(track => track.stop());
@@ -124,5 +131,10 @@ export function useInterviewAudio({
       }
   }, [stopRecording]);
 
-  return { isRecording, isSpeaking, startRecording, stopRecording };
+  const clearAudio = useCallback(() => {
+    setAudioBlob(null);
+    setAudioUrl(null);
+  }, []);
+
+  return { isRecording, isSpeaking, startRecording, stopRecording, audioBlob, audioUrl, transcript, clearAudio };
 }

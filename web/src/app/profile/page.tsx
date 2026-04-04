@@ -187,6 +187,19 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="space-y-2">
+                    <Label htmlFor="bio">Bio</Label>
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        id="bio"
+                        value={profile.bio}
+                        onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                        disabled={!isEditing}
+                        placeholder="Tell us about yourself"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
                     <Label>Member Since</Label>
                     <div className="flex items-center space-x-2">
                       <Calendar className="w-4 h-4 text-muted-foreground" />

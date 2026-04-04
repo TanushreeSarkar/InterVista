@@ -74,6 +74,9 @@ export async function generateQuestions(
 export async function evaluateAnswers(
   questions: string[],
   answers: string[],
+  role: string = 'Candidate',
+  company: string = 'Company',
+  difficulty: string = 'Medium',
   personaId?: string
 ): Promise<EvaluationResult> {
   const persona = getPersona(personaId);
@@ -83,60 +86,95 @@ export async function evaluateAnswers(
     .join('\n\n');
 
   const prompt = `Evaluate the following interview responses.
+Role: ${role}
+Company: ${company}
+Difficulty: ${difficulty}
+Persona Style: ${persona.name}
 
+Interview Transcript:
 ${qaPairs}
 
 Return ONLY a valid JSON object with this exact structure:
 {
   "overallScore": <number 0-100>,
-  "summary": "<string>",
-  "recommendation": "<one of: Strong Hire, Hire, Consider, No Hire>",
+  "recommendation": "<Strong Hire | Hire | Consider | No Hire>",
+  "executiveSummary": "<3-4 sentence overall assessment>",
   "skillsAssessment": {
-    "communication": <number 0-100>,
-    "technicalKnowledge": <number 0-100>,
-    "problemSolving": <number 0-100>,
-    "confidence": <number 0-100>
+    "communication": { "score": <0-100>, "observation": "<text>" },
+    "technicalKnowledge": { "score": <0-100>, "observation": "<text>" },
+    "problemSolving": { "score": <0-100>, "observation": "<text>" },
+    "confidence": { "score": <0-100>, "observation": "<text>" },
+    "structuredThinking": { "score": <0-100>, "observation": "<text>" },
+    "relevantExperience": { "score": <0-100>, "observation": "<text>" }
   },
-  "feedback": [
+  "questionFeedback": [
     {
       "questionIndex": <number>,
       "question": "<text>",
       "answer": "<text>",
       "score": <number 0-10>,
-      "strengths": ["<string>", ...],
-      "improvements": ["<string>", ...],
-      "detailedFeedback": "<string>"
+      "grade": "<A | B | C | D | F>",
+      "whatWentWell": ["<text>", "<text>"],
+      "whatToImprove": ["<text>", "<text>"],
+      "idealAnswerOutline": "<What a perfect answer would have covered in 2-3 sentences>",
+      "detailedFeedback": "<3-4 sentences of specific, actionable coaching feedback>"
     }
-  ]
+  ],
+  "overallStrengths": ["<text>", "<text>", "<text>"],
+  "overallWeaknesses": ["<text>", "<text>", "<text>"],
+  "improvementPlan": [
+    {
+      "priority": "<High | Medium | Low>",
+      "area": "<skill area>",
+      "action": "<actionable step>",
+      "resource": "<suggested practice method>"
+    }
+  ],
+  "interviewTips": ["<tip 1>", "<tip 2>", "<tip 3>"],
+  "hiringManagerNote": "<What a hiring manager would note about this candidate in 2 sentences>"
 }
 
-Make sure the feedback array has exactly ${questions.length} items.`;
+Make sure the questionFeedback array has exactly ${questions.length} items.`;
 
-  const response = await groq.chat.completions.create({
-    model: MODEL,
-    messages: [
-      { role: 'system', content: persona.systemPrompt + ' You are also an expert interview evaluator.' },
-      { role: 'user', content: prompt }
-    ],
-    temperature: 0.1,
-    max_tokens: 4096,
-    response_format: { type: 'json_object' }
-  });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await groq.chat.completions.create({
+        model: MODEL,
+        messages: [
+          { role: 'system', content: persona.systemPrompt + ' You are an expert interview coach and hiring manager with 20 years experience. Analyze this complete interview and provide an extremely detailed, actionable evaluation.' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.1,
+        max_tokens: 4096,
+        response_format: { type: 'json_object' }
+      });
 
-  const raw = response.choices[0].message.content || '';
-  const cleaned = cleanJsonResponse(raw);
-  const result: EvaluationResult = JSON.parse(cleaned);
+      const raw = response.choices[0].message.content || '';
+      const cleaned = cleanJsonResponse(raw);
+      const result: EvaluationResult = JSON.parse(cleaned);
 
-  if (
-    typeof result.overallScore !== 'number' ||
-    typeof result.summary !== 'string' ||
-    !result.skillsAssessment ||
-    !Array.isArray(result.feedback)
-  ) {
-    throw new Error('AI evaluation response has invalid shape');
+      if (
+        typeof result.overallScore !== 'number' ||
+        typeof result.executiveSummary !== 'string' ||
+        !result.skillsAssessment ||
+        !Array.isArray(result.questionFeedback)
+      ) {
+        throw new Error('AI evaluation response has invalid shape');
+      }
+
+      return result;
+    } catch (error) {
+      if (attempt < 2) {
+        logger.warn(`Evaluation failed (attempt ${attempt + 1}), retrying...`, error);
+        await new Promise(r => setTimeout(r, 1000));
+        continue;
+      }
+      logger.error('Final evaluation attempt failed', error);
+      throw new Error(`Failed to evaluate answers after 3 attempts: ${error}`);
+    }
   }
-
-  return result;
+  
+  throw new Error('Failed to evaluate answers');
 }
 
 /**

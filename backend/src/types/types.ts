@@ -15,6 +15,9 @@ export interface JwtPayload {
   sub: string;   // user id
   email: string;
   name: string;
+  jti?: string;
+  exp?: number;
+  iat?: number;
 }
 
 export interface AuthRequest extends Request {
@@ -56,11 +59,18 @@ export interface Answer {
 }
 
 // ─── Evaluation ──────────────────────────────────────────
+export interface SkillScore {
+  score: number;
+  observation: string;
+}
+
 export interface SkillsAssessment {
-  communication: number;
-  technicalKnowledge: number;
-  problemSolving: number;
-  confidence: number;
+  communication: SkillScore;
+  technicalKnowledge: SkillScore;
+  problemSolving: SkillScore;
+  confidence: SkillScore;
+  structuredThinking: SkillScore;
+  relevantExperience: SkillScore;
 }
 
 export interface QuestionFeedback {
@@ -68,17 +78,31 @@ export interface QuestionFeedback {
   question: string;
   answer: string;
   score: number;
-  strengths: string[];
-  improvements: string[];
+  grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  whatWentWell: string[];
+  whatToImprove: string[];
+  idealAnswerOutline: string;
   detailedFeedback: string;
+}
+
+export interface ImprovementPlanItem {
+  priority: 'High' | 'Medium' | 'Low';
+  area: string;
+  action: string;
+  resource: string;
 }
 
 export interface EvaluationResult {
   overallScore: number;
-  summary: string;
   recommendation: 'Strong Hire' | 'Hire' | 'Consider' | 'No Hire';
+  executiveSummary: string;
   skillsAssessment: SkillsAssessment;
-  feedback: QuestionFeedback[];
+  questionFeedback: QuestionFeedback[];
+  overallStrengths: string[];
+  overallWeaknesses: string[];
+  improvementPlan: ImprovementPlanItem[];
+  interviewTips: string[];
+  hiringManagerNote: string;
 }
 
 export interface StoredEvaluation extends EvaluationResult {

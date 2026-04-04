@@ -71,10 +71,10 @@ const logger = winston.createLogger({
     isProduction
       ? winston.format.json()
       : winston.format.printf(({ timestamp, level, message, stack }) => {
-          return stack
-            ? `${timestamp} ${level}: ${message}\n${stack}`
-            : `${timestamp} ${level}: ${message}`;
-        })
+        return stack
+          ? `${timestamp} ${level}: ${message}\n${stack}`
+          : `${timestamp} ${level}: ${message}`;
+      })
   ),
   transports,
   // Don't exit on unhandled errors

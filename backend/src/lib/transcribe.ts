@@ -1,7 +1,12 @@
 import OpenAI from 'openai';
 import fs from 'fs';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+let _openai: OpenAI | null = null;
+function getOpenAI() {
+  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not set');
+  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return _openai;
+}
 
 /**
  * Transcribe an audio file using OpenAI Whisper API.
@@ -11,7 +16,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 export async function transcribeAudio(filePath: string): Promise<string> {
   const file = fs.createReadStream(filePath);
 
-  const response = await openai.audio.transcriptions.create({
+  const response = await getOpenAI().audio.transcriptions.create({
     model: 'whisper-1',
     file,
     language: 'en',

@@ -1,10 +1,12 @@
 import { Response, NextFunction } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { getDb, getFieldValue } from '../db/firestore';
+import { v4 as uuidv4 } from 'uuid';
+import { getDb, getFieldValue, getAdmin } from '../db/firestore';
 import { AuthRequest, JwtPayload } from '../types/types';
 import { sanitizeFields } from '../lib/sanitize';
 import logger from '../lib/logger';
+import { addToBlocklist } from '../lib/tokenBlocklist';
 
 const SALT_ROUNDS = 12;
 const COOKIE_NAME = 'intervista_session';
@@ -78,6 +80,7 @@ export async function signup(
       sub: userRef.id,
       email,
       name: sanitized.name,
+      jti: uuidv4(),
     };
     const token = generateToken(tokenPayload);
 
@@ -136,6 +139,7 @@ export async function signin(
       sub: userDoc.id,
       email: userData.email,
       name: userData.name,
+      jti: uuidv4(),
     };
     const token = generateToken(tokenPayload);
 
@@ -161,11 +165,16 @@ export async function signin(
  * Clears the session cookie.
  */
 export async function signout(
-  _req: AuthRequest,
+  req: AuthRequest,
   res: Response,
   _next: NextFunction
 ): Promise<void> {
   const isProduction = process.env.NODE_ENV === 'production';
+  
+  if (req.user && req.user.jti && req.user.exp) {
+    await addToBlocklist(req.user.jti, new Date(req.user.exp * 1000));
+  }
+  
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
     secure: isProduction,
@@ -250,7 +259,11 @@ export async function resetPassword(
         await sendOTPEmail(email, otp);
         logger.info('Password reset OTP email sent');
       } catch (emailErr) {
-        logger.error('Failed to send OTP email', emailErr);
+        logger.error('Failed to send OTP email', { emailErr });
+        res.status(503).json({ 
+          error: 'Failed to send reset email. Please try again or contact support.' 
+        });
+        return;
       }
     } else {
       logger.warn('SMTP not configured — OTP email skipped');
@@ -321,5 +334,86 @@ export async function verifyReset(
     res.json({ data: { message: 'Password has been reset successfully.' } });
   } catch (error) {
     next(error);
+  }
+}
+
+/**
+ * POST /api/auth/oauth
+ */
+export async function oauth(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { idToken, provider } = req.body;
+    if (!idToken || !provider) {
+      res.status(400).json({ error: 'Missing idToken or provider.' });
+      return;
+    }
+
+    const admin = getAdmin();
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const { email, name, picture } = decodedToken;
+
+    if (!email) {
+      res.status(400).json({ error: 'OAuth provider did not return an email address.' });
+      return;
+    }
+
+    const usersRef = getDb().collection('users');
+    const usersSnapshot = await usersRef.where('email', '==', email).limit(1).get();
+
+    let userDoc;
+    let userId;
+    let userName = name || email.split('@')[0];
+
+    if (usersSnapshot.empty) {
+      // Create new user
+      const userRef = usersRef.doc();
+      userId = userRef.id;
+      const userData = {
+        name: userName,
+        email,
+        provider,
+        picture: picture || null,
+        createdAt: getFieldValue().serverTimestamp(),
+        updatedAt: getFieldValue().serverTimestamp(),
+        lastLoginAt: getFieldValue().serverTimestamp(),
+      };
+      await userRef.set(userData);
+    } else {
+      userDoc = usersSnapshot.docs[0];
+      userId = userDoc.id;
+      userName = userDoc.data().name;
+      await userDoc.ref.update({
+        lastLoginAt: getFieldValue().serverTimestamp(),
+      });
+    }
+
+    // Generate JWT
+    const tokenPayload: JwtPayload = {
+      sub: userId,
+      email,
+      name: userName,
+      jti: uuidv4(),
+    };
+    const token = generateToken(tokenPayload);
+
+    // Set cookie
+    setAuthCookie(res, token);
+
+    res.json({
+      data: {
+        user: {
+          id: userId,
+          name: userName,
+          email,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('OAuth error', { error });
+    res.status(401).json({ error: 'Invalid OAuth token.' });
   }
 }

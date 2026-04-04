@@ -12,16 +12,7 @@ const router = Router();
 
 // ─── Route-specific rate limiters ──────────────────────────
 
-// Auth routes: 10 req / 15 min per IP (prevent brute force)
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (_req, res) => {
-    res.status(429).json({ error: 'Too many requests', retryAfter: 900 });
-  },
-});
+
 
 // AI routes: 20 req / hour per IP (expensive API calls)
 const aiLimiter = rateLimit({
@@ -34,7 +25,7 @@ const aiLimiter = rateLimit({
   },
 });
 
-router.use('/auth', authLimiter, authRoutes);
+router.use('/auth', authRoutes);
 router.use('/sessions', sessionRoutes);
 router.use('/answers', answerRoutes);
 router.use('/question-banks', questionBankRoutes);

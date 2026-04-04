@@ -5,7 +5,12 @@ import { getDb } from '../db/firestore';
 import { getPersona } from '../lib/personas';
 import logger from '../lib/logger';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+let _openai: OpenAI | null = null;
+function getOpenAI() {
+  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not set');
+  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return _openai;
+}
 
 /**
  * POST /api/tts/speak
@@ -33,7 +38,7 @@ export async function speak(
       }
     }
 
-    const mp3 = await openai.audio.speech.create({
+    const mp3 = await getOpenAI().audio.speech.create({
       model: 'tts-1',
       voice,
       input: text,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,9 @@ interface NewSessionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSessionCreated?: (sessionId: string) => void;
+  initialRole?: string;
+  initialDifficulty?: string;
+  initialPersonaId?: string;
 }
 
 const roles = [
@@ -45,10 +48,14 @@ export function NewSessionDialog({
   open,
   onOpenChange,
   onSessionCreated,
+  initialRole = "",
+  initialDifficulty = "",
+  initialPersonaId = "",
 }: NewSessionDialogProps) {
-  const [role, setRole] = useState("");
+  const [role, setRole] = useState(initialRole);
   const [company, setCompany] = useState("");
-  const [difficulty, setDifficulty] = useState("");
+  const [difficulty, setDifficulty] = useState(initialDifficulty);
+  const [showRoleSuggestions, setShowRoleSuggestions] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -58,7 +65,7 @@ export function NewSessionDialog({
     try {
       setLoading(true);
       setError("");
-      const { session } = await createSession({ role, company, difficulty });
+      const { session } = await createSession({ role, company, difficulty, personaId: initialPersonaId || undefined });
       onOpenChange(false);
       onSessionCreated?.(session.id);
     } catch (error: unknown) {
@@ -68,6 +75,17 @@ export function NewSessionDialog({
       setLoading(false);
     }
   }
+
+  // Effect to update internal state when dialog opens with new props
+  useEffect(() => {
+    if (open) {
+      setRole(initialRole);
+      setDifficulty(initialDifficulty);
+      setCompany("");
+      setError("");
+      setShowRoleSuggestions(false);
+    }
+  }, [open, initialRole, initialDifficulty]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -81,20 +99,37 @@ export function NewSessionDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="space-y-2">
+          <div className="space-y-2 relative">
             <Label>Role</Label>
-            <Select value={role} onValueChange={setRole}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a role" />
-              </SelectTrigger>
-              <SelectContent>
-                {roles.map((r) => (
-                  <SelectItem key={r} value={r}>
-                    {r}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              value={role}
+              onChange={(e) => {
+                setRole(e.target.value);
+                setShowRoleSuggestions(true);
+              }}
+              onFocus={() => setShowRoleSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowRoleSuggestions(false), 200)}
+              placeholder="e.g. Software Engineer"
+            />
+            {showRoleSuggestions && (
+              <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                {roles
+                  .filter(r => r.toLowerCase().includes(role.toLowerCase()))
+                  .map((r) => (
+                    <div
+                      key={r}
+                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setRole(r);
+                        setShowRoleSuggestions(false);
+                      }}
+                    >
+                      {r}
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

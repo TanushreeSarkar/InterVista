@@ -1,0 +1,191 @@
+﻿
+> web@0.1.0 build
+> next build
+
+  Γû▓ Next.js 14.2.33
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully
+   Linting and checking validity of types ...
+node.exe : 
+At C:\Program 
+Files\nodejs\npm.ps1:29 
+char:3
++   & $NODE_EXE 
+$NPM_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~
+    + CategoryInfo         
+     : NotSpecified: (:St  
+  ring) [], RemoteExcept   
+ ion
+    + FullyQualifiedErrorI 
+   d : NativeCommandError
+ 
+Failed to compile.
+
+./src/app/dashboard/page.ts
+x
+6:10  Warning: 'Button' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+7:10  Warning: 'Badge' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+18:10  Warning: 'sessions' 
+is assigned a value but 
+never used.  @typescript-es
+lint/no-unused-vars
+
+./src/app/evaluation/[id]/p
+age.tsx
+3:31  Warning: 'useRef' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+7:10  Warning: 'Card' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+7:16  Warning: 
+'CardContent' is defined 
+but never used.  @typescrip
+t-eslint/no-unused-vars
+29:17  Warning: 'setError' 
+is assigned a value but 
+never used.  @typescript-es
+lint/no-unused-vars
+97:11  Error: 'start' is 
+never reassigned. Use 
+'const' instead.  
+prefer-const
+346:40  Warning: 
+Unexpected any. Specify a 
+different type.  @typescrip
+t-eslint/no-explicit-any
+348:22  Warning: 'sColor' 
+is assigned a value but 
+never used.  @typescript-es
+lint/no-unused-vars
+439:34  Error: `"` can be 
+escaped with `&quot;`, 
+`&ldquo;`, `&#34;`, 
+`&rdquo;`.  
+react/no-unescaped-entities
+439:45  Error: `"` can be 
+escaped with `&quot;`, 
+`&ldquo;`, `&#34;`, 
+`&rdquo;`.  
+react/no-unescaped-entities
+499:55  Warning: 
+Unexpected any. Specify a 
+different type.  @typescrip
+t-eslint/no-explicit-any
+500:23  Warning: 'colors' 
+is assigned a value but 
+never used.  @typescript-es
+lint/no-unused-vars
+501:23  Warning: 
+'textColors' is assigned a 
+value but never used.  @typ
+escript-eslint/no-unused-va
+rs
+555:81  Error: `'` can be 
+escaped with `&apos;`, 
+`&lsquo;`, `&#39;`, 
+`&rsquo;`.  
+react/no-unescaped-entities
+558:20  Error: `"` can be 
+escaped with `&quot;`, 
+`&ldquo;`, `&#34;`, 
+`&rdquo;`.  
+react/no-unescaped-entities
+558:120  Error: `"` can be 
+escaped with `&quot;`, 
+`&ldquo;`, `&#34;`, 
+`&rdquo;`.  
+react/no-unescaped-entities
+
+./src/app/interview/[id]/pa
+ge.tsx
+14:23  Warning: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+14:60  Warning: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+46:33  Warning: Unexpected 
+any. Specify a different 
+type.  @typescript-eslint/n
+o-explicit-any
+86:6  Warning: React Hook 
+useEffect has a missing 
+dependency: 
+'loadQuestions'. Either 
+include it or remove the 
+dependency array.  
+react-hooks/exhaustive-deps
+108:6  Warning: React Hook 
+useEffect has a missing 
+dependency: 
+'startQuestion'. Either 
+include it or remove the 
+dependency array.  
+react-hooks/exhaustive-deps
+116:52  Warning: 'e' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+182:36  Warning: 
+Unexpected any. Specify a 
+different type.  @typescrip
+t-eslint/no-explicit-any
+193:31  Warning: 
+Unexpected any. Specify a 
+different type.  @typescrip
+t-eslint/no-explicit-any
+200:44  Warning: 'e' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+204:40  Warning: 'e' is 
+defined but never used.  @t
+ypescript-eslint/no-unused-
+vars
+209:6  Warning: React Hook 
+useCallback has missing 
+dependencies: 
+'resetSilenceTimer' and 
+'startCountdown'. Either 
+include them or remove the 
+dependency array.  
+react-hooks/exhaustive-deps
+
+./src/app/settings/page.tsx
+20:10  Warning: 'loading' 
+is assigned a value but 
+never used.  @typescript-es
+lint/no-unused-vars
+
+./src/app/sign-in/page.tsx
+30:112  Warning: 
+Unexpected any. Specify a 
+different type.  @typescrip
+t-eslint/no-explicit-any
+
+./src/app/sign-up/page.tsx
+32:112  Warning: 
+Unexpected any. Specify a 
+different type.  @typescrip
+t-eslint/no-explicit-any
+
+info  - Need to disable 
+some ESLint rules? Learn 
+more here: https://nextjs.o
+rg/docs/basic-features/esli
+nt#disabling-rules

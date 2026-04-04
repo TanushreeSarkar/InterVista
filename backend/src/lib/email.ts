@@ -33,7 +33,7 @@ export async function sendOTPEmail(to: string, otp: string): Promise<void> {
           </span>
         </div>
         <p style="color:#6b7280;font-size:13px;">
-          This code expires in 10 minutes. If you didn't request this, ignore this email.
+          This code expires in 15 minutes. If you didn't request this, ignore this email.
         </p>
       </div>
     `,

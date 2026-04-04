@@ -22,6 +22,6 @@ export const siteConfig = {
     },
   ],
   links: {
-    github: "https://github.com/me/intervista",
+    github: "https://github.com/TanushreeSarkar/InterVista",
   },
 };

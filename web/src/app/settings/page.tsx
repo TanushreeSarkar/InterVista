@@ -13,20 +13,68 @@ import { Bell, Lock, Globe, Trash2, LogOut, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import * as api from "@/lib/api";
 import toast from "react-hot-toast";
+import { useEffect, useRef } from "react";
 
 export default function SettingsPage() {
   const { signOut } = useAuth();
+  const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState({
     email: true,
     push: false,
     sms: false,
   });
+  const [language, setLanguage] = useState("English");
+  const [timezone, setTimezone] = useState("UTC-8 (Pacific Time)");
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const profile = await api.getProfile();
+        if (profile.preferences) {
+          setNotifications({
+            email: profile.preferences.emailNotifications,
+            push: profile.preferences.pushNotifications,
+            sms: false, // Not persisted in backend schema currently
+          });
+          setLanguage(profile.preferences.language);
+          setTimezone(profile.preferences.timezone);
+        }
+      } catch (err) {
+        console.error("Failed to load profile", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const initialRender = useRef(true);
+  useEffect(() => {
+    if (initialRender.current) {
+      initialRender.current = false;
+      return;
+    }
+    const timeout = setTimeout(async () => {
+      try {
+        await api.updatePreferences({
+          emailNotifications: notifications.email,
+          pushNotifications: notifications.push,
+          language,
+          timezone,
+        });
+      } catch (err) {
+        console.error("Failed to save preferences", err);
+      }
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [notifications, language, timezone]);
 
   const handlePasswordChange = async () => {
     if (newPassword !== confirmPassword) {
@@ -214,12 +262,14 @@ export default function SettingsPage() {
                     <Label htmlFor="language">Language</Label>
                     <select
                       id="language"
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value)}
                       className="w-full mt-2 px-3 py-2 border border-input rounded-md bg-background"
                     >
-                      <option>English</option>
-                      <option>Spanish</option>
-                      <option>French</option>
-                      <option>German</option>
+                      <option value="English">English</option>
+                      <option value="Spanish">Spanish</option>
+                      <option value="French">French</option>
+                      <option value="German">German</option>
                     </select>
                   </div>
 
@@ -227,12 +277,14 @@ export default function SettingsPage() {
                     <Label htmlFor="timezone">Timezone</Label>
                     <select
                       id="timezone"
+                      value={timezone}
+                      onChange={(e) => setTimezone(e.target.value)}
                       className="w-full mt-2 px-3 py-2 border border-input rounded-md bg-background"
                     >
-                      <option>UTC-8 (Pacific Time)</option>
-                      <option>UTC-5 (Eastern Time)</option>
-                      <option>UTC+0 (GMT)</option>
-                      <option>UTC+1 (CET)</option>
+                      <option value="UTC-8 (Pacific Time)">UTC-8 (Pacific Time)</option>
+                      <option value="UTC-5 (Eastern Time)">UTC-5 (Eastern Time)</option>
+                      <option value="UTC+0 (GMT)">UTC+0 (GMT)</option>
+                      <option value="UTC+1 (CET)">UTC+1 (CET)</option>
                     </select>
                   </div>
                 </CardContent>

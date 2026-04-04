@@ -14,19 +14,20 @@ A comprehensive full-stack application for practicing interviews with AI-powered
 - 🎯 Animated landing page
 
 ### Backend
-- 🔒 JWT-based authentication with bcrypt password hashing
+- 🔒 JWT-based authentication with bcrypt password hashing (httpOnly cookies)
 - 🗄️ Firebase Firestore database (all collections)
-- 📁 Audio file upload support (multer)
-- 🤖 **Real AI evaluation with Anthropic Claude** (claude-sonnet-4-20250514)
+- 📁 Audio file upload support (multer) with magic byte validation
+- 🤖 **Real AI evaluation with Groq (Llama 3)**
+- 🎙️ **Voice features with OpenAI (Whisper + TTS)**
 - 🔄 RESTful API with typed responses
 - 🛡️ Security with Helmet and CORS
 
 ## 📋 Prerequisites
 
-- **Node.js v20+** (no Java, no JVM required)
+- **Node.js v20+**
 - npm or yarn
 - Firebase project with Firestore enabled
-- Anthropic API key
+- Groq API key and OpenAI API key
 
 ## 🛠️ Installation
 
@@ -57,7 +58,10 @@ FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_KEY_HERE\n-----END PRIVA
 JWT_SECRET=your-super-secret-jwt-key-at-least-64-characters
 JWT_EXPIRES_IN=7d
 CORS_ORIGINS=http://localhost:3000
-ANTHROPIC_API_KEY=sk-ant-your-api-key
+GROQ_API_KEY=gsk_your_groq_api_key
+OPENAI_API_KEY=sk-your-openai-api_key
+SMTP_USER=your-email@example.com
+SMTP_PASS=your-smtp-password
 ```
 
 **Firebase Setup:**
@@ -120,23 +124,27 @@ InterVista/
 
 ## 🔐 Authentication Flow
 
-1. User signs up → password hashed with bcrypt (12 rounds)*
-2. JWT token generated and returned with user data
-3. Token stored in `localStorage` as `intervista_token`
-4. All API requests include `Authorization: Bearer <token>`
-5. On 401 response → token cleared, redirect to sign-in
+1. User signs up → password hashed with bcrypt (12 rounds)
+2. JWT token generated with a JTI and stored securely in an `httpOnly` cookie
+3. Session is maintained via the cookie, which is sent with all `Credentials: "include"` requests
+4. Sign out revokes the JWT using a Firestore blocklist
+5. On 401 response → cookie cleared, redirect to sign-in
 6. `GET /api/auth/me` validates token and returns user on page load
 
 ## 🤖 AI Integration
 
-InterVista uses **Anthropic Claude (claude-sonnet-4-20250514)** for:
+## 🤖 AI Integration
 
-- **Question Generation**: AI generates 5 role-specific interview questions based on company, role, and difficulty level
-- **Answer Evaluation**: AI evaluates all answers and returns:
+InterVista uses **Groq (Llama 3.3)** and **OpenAI** for:
+
+- **Question Generation**: Groq generates 5 role-specific interview questions based on company, role, target difficulty and persona constraints
+- **Answer Evaluation**: Groq evaluates all answers asynchronously (202 Accepted pattern) and returns:
   - Overall score (0-100)
   - Recommendation (Strong Hire / Hire / Consider / No Hire)
   - Skills assessment (Communication, Technical Knowledge, Problem Solving, Confidence)
   - Per-question feedback with strengths and areas for improvement
+- **Transcription**: OpenAI Whisper transcribes candidate audio responses
+- **Text-to-Speech**: OpenAI TTS brings the interviewer personas to life
 
 ## 📝 API Endpoints
 
@@ -161,7 +169,9 @@ InterVista uses **Anthropic Claude (claude-sonnet-4-20250514)** for:
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
 | POST | `/api/answers` | Submit answer (multipart) | Yes |
-| GET | `/api/answers/evaluation/:sessionId` | Get/generate AI evaluation | Yes |
+| GET | `/api/answers/evaluation/:sessionId` | Get/generate AI evaluation (async 202) | Yes |
+| POST | `/api/answers/evaluation/:sessionId/retry` | Retry failed evaluation | Yes |
+| POST | `/api/auth/signout` | Sign out and revoke token | Yes |
 
 All responses follow: `{ data: payload }` on success, `{ error: string }` on failure.
 
@@ -178,7 +188,10 @@ All responses follow: `{ data: payload }` on success, `{ error: string }` on fai
 | JWT_SECRET | JWT signing secret | **Yes** |
 | JWT_EXPIRES_IN | Token expiration (default: 7d) | No |
 | CORS_ORIGINS | Allowed origins (default: localhost:3000) | No |
-| ANTHROPIC_API_KEY | Anthropic API key for Claude | **Yes** |
+| GROQ_API_KEY | Groq API key for Llama 3 | **Yes** |
+| OPENAI_API_KEY | OpenAI API key for TTS/Whisper | **Yes** |
+| SMTP_USER | SMTP username | No |
+| SMTP_PASS | SMTP password | No |
 
 ### Frontend
 | Variable | Description | Required |
@@ -193,8 +206,9 @@ All responses follow: `{ data: payload }` on success, `{ error: string }` on fai
 | **Styling** | Tailwind CSS v3, shadcn/ui, Framer Motion |
 | **Backend** | Express.js, TypeScript, Node.js v20+ |
 | **Database** | Firebase Firestore |
-| **Auth** | JWT (jsonwebtoken), bcrypt |
-| **AI** | Anthropic Claude (claude-sonnet-4-20250514) |
+| **Auth** | JWT in httpOnly Cookies, bcrypt |
+| **AI (LLM)** | Groq (llama-3.3-70b-versatile) |
+| **AI (Audio)** | OpenAI (whisper-1, tts-1) |
 | **File Upload** | Multer |
 
 ---

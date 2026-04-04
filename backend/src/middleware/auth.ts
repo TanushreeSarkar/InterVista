@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AuthRequest, JwtPayload } from '../types/types';
 import logger from '../lib/logger';
+import { isBlocked } from '../lib/tokenBlocklist';
 
 const COOKIE_NAME = 'intervista_session';
 
@@ -10,11 +11,11 @@ const COOKIE_NAME = 'intervista_session';
  * Reads JWT from httpOnly cookie first, Authorization header as fallback.
  * Attaches decoded payload to req.user.
  */
-export function authMiddleware(
+export async function authMiddleware(
   req: AuthRequest,
   res: Response,
   next: NextFunction
-): void {
+): Promise<void> {
   try {
     // 1. Try httpOnly cookie first
     let token = req.cookies?.[COOKIE_NAME];
@@ -32,17 +33,25 @@ export function authMiddleware(
       return;
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload & { jti?: string };
+    
+    if (decoded.jti && await isBlocked(decoded.jti)) {
+      res.clearCookie(COOKIE_NAME, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/' });
+      res.status(401).json({ error: 'Session expired. Please sign in again.' });
+      return;
+    }
+    
     req.user = decoded;
     next();
   } catch (error: any) {
     if (error.name === 'TokenExpiredError') {
       // Clear expired cookie
-      res.clearCookie(COOKIE_NAME, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' });
+      res.clearCookie(COOKIE_NAME, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/' });
       res.status(401).json({ error: 'Token has expired. Please sign in again.' });
       return;
     }
     if (error.name === 'JsonWebTokenError') {
+      res.clearCookie(COOKIE_NAME, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/' });
       res.status(401).json({ error: 'Invalid token. Please sign in again.' });
       return;
     }

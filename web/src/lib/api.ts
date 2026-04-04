@@ -3,7 +3,7 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 // ─── Core fetch wrapper ────────────────────────────────────
-async function apiFetch<T>(
+export async function apiFetch<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
@@ -23,9 +23,18 @@ async function apiFetch<T>(
     cache: 'no-store',
   });
 
+  if (res.status === 429) {
+    const data = await res.json().catch(() => ({}));
+    const minutes = Math.ceil((data.retryAfter || 900) / 60);
+    throw new Error(`Rate limit reached. Try again in ${minutes} minutes.`);
+  }
+
   if (res.status === 401) {
     if (typeof window !== 'undefined') {
-      window.location.href = '/sign-in';
+      const isAuthPage = ['/sign-in', '/sign-up', '/reset-password'].some(p => window.location.pathname.startsWith(p));
+      if (!isAuthPage) {
+        window.location.href = '/sign-in';
+      }
     }
     throw new Error('Session expired. Please sign in again.');
   }
@@ -69,11 +78,18 @@ export interface Question {
   index: number;
 }
 
+export interface SkillScore {
+  score: number;
+  observation: string;
+}
+
 export interface SkillsAssessment {
-  communication: number;
-  technicalKnowledge: number;
-  problemSolving: number;
-  confidence: number;
+  communication: SkillScore;
+  technicalKnowledge: SkillScore;
+  problemSolving: SkillScore;
+  confidence: SkillScore;
+  structuredThinking: SkillScore;
+  relevantExperience: SkillScore;
 }
 
 export interface QuestionFeedback {
@@ -81,19 +97,70 @@ export interface QuestionFeedback {
   question: string;
   answer: string;
   score: number;
-  strengths: string[];
-  improvements: string[];
+  grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  whatWentWell: string[];
+  whatToImprove: string[];
+  idealAnswerOutline: string;
   detailedFeedback: string;
+}
+
+export interface ImprovementPlanItem {
+  priority: 'High' | 'Medium' | 'Low';
+  area: string;
+  action: string;
+  resource: string;
 }
 
 export interface EvaluationResult {
   id: string;
   sessionId: string;
   overallScore: number;
-  summary: string;
   recommendation: 'Strong Hire' | 'Hire' | 'Consider' | 'No Hire';
+  executiveSummary: string;
   skillsAssessment: SkillsAssessment;
-  feedback: QuestionFeedback[];
+  questionFeedback: QuestionFeedback[];
+  overallStrengths: string[];
+  overallWeaknesses: string[];
+  improvementPlan: ImprovementPlanItem[];
+  interviewTips: string[];
+  hiringManagerNote: string;
+}
+
+export interface ExportData {
+  session: {
+    id: string
+    role: string
+    company: string
+    difficulty: string
+    personaId: string
+    status: string
+    createdAt: string
+  }
+  questions: Array<{
+    id: string
+    text: string
+    order: number
+  }>
+  evaluation: {
+    overallScore: number
+    recommendation: string
+    summary: string
+    skillsAssessment: {
+      communication: number
+      technicalKnowledge: number
+      problemSolving: number
+      confidence: number
+    }
+    feedback: Array<{
+      questionIndex: number
+      question: string
+      answer: string
+      score: number
+      strengths: string[]
+      improvements: string[]
+      detailedFeedback: string
+    }>
+  }
 }
 
 export interface CreateSessionResponse {
@@ -108,6 +175,12 @@ export interface UserProfile {
   bio: string;
   targetRole: string;
   targetCompany: string;
+  preferences?: {
+    emailNotifications: boolean;
+    pushNotifications: boolean;
+    language: string;
+    timezone: string;
+  };
   createdAt: string | null;
 }
 
@@ -218,8 +291,8 @@ export async function getSessionTranscript(sessionId: string): Promise<Transcrip
   return apiFetch<Transcript>(`/api/sessions/${encodeURIComponent(sessionId)}/transcript`);
 }
 
-export async function exportSession(sessionId: string): Promise<{ url: string }> {
-  return apiFetch<{ url: string }>(`/api/sessions/${encodeURIComponent(sessionId)}/export`);
+export async function exportSession(sessionId: string): Promise<ExportData> {
+  return apiFetch<ExportData>(`/api/sessions/${encodeURIComponent(sessionId)}/export`);
 }
 
 // ─── Answers API ───────────────────────────────────────────
@@ -246,8 +319,18 @@ export async function submitAnswer(data: {
   });
 }
 
-export async function getEvaluation(sessionId: string): Promise<EvaluationResult> {
-  return apiFetch<EvaluationResult>(`/api/answers/evaluation/${encodeURIComponent(sessionId)}`);
+export async function getEvaluation(sessionId: string): Promise<EvaluationResult | { status: 'evaluating' }> {
+  return apiFetch<EvaluationResult | { status: 'evaluating' }>(`/api/answers/evaluation/${encodeURIComponent(sessionId)}`);
+}
+
+export async function getTtsAudio(text: string, sessionId?: string): Promise<Blob> {
+  const res = await fetch(`${API_BASE_URL}/api/tts/speak`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, sessionId }),
+  });
+  if (!res.ok) throw new Error('Failed to fetch TTS audio');
+  return res.blob();
 }
 
 // ─── Users API ─────────────────────────────────────────────
@@ -262,6 +345,18 @@ export async function updateProfile(data: {
   targetCompany?: string;
 }): Promise<{ message: string }> {
   return apiFetch<{ message: string }>('/api/users/profile', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updatePreferences(data: {
+  emailNotifications?: boolean;
+  pushNotifications?: boolean;
+  language?: string;
+  timezone?: string;
+}): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>('/api/users/preferences', {
     method: 'PUT',
     body: JSON.stringify(data),
   });
