@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+// import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle, AlertTriangle, XCircle, Star, Download, RefreshCcw, ArrowLeft, ChevronDown, MessageSquare, TrendingUp, TrendingDown, Target, Lightbulb, Users, TerminalSquare, Search, Award } from "lucide-react";
 import { getEvaluation, type EvaluationResult, type QuestionFeedback } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";

@@ -8,9 +8,12 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+// Initialize Firebase only if the API key is provided
+let app;
+if (typeof window !== 'undefined' || firebaseConfig.apiKey) {
+  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+}
 
-export const auth = getAuth(app);
+export const auth = app ? getAuth(app) : null;
 export const googleProvider = new GoogleAuthProvider();
 export const githubProvider = new GithubAuthProvider();

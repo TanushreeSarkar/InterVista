@@ -3,8 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Bell, Chrome, Zap, Terminal, Briefcase, BellOff, ArrowLeft, Menu } from "lucide-react";
 import Link from "next/link";
 import { NewSessionDialog } from "@/components/dashboard/new-session-dialog";
@@ -15,7 +13,7 @@ import { useAuth } from "@/contexts/auth-context";
 export default function DashboardPage() {
   const router = useRouter();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
-  const [sessions, setSessions] = useState<InterviewSession[]>([]);
+  const [, setSessions] = useState<InterviewSession[]>([]);
   const [, setLoading] = useState(true);
   const [showNewSession, setShowNewSession] = useState(false);
   const [activeTab, setActiveTab] = useState("Software Engineering");
