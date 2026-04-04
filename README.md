@@ -133,8 +133,6 @@ InterVista/
 
 ## 🤖 AI Integration
 
-## 🤖 AI Integration
-
 InterVista uses **Groq (Llama 3.3)** and **OpenAI** for:
 
 - **Question Generation**: Groq generates 5 role-specific interview questions based on company, role, target difficulty and persona constraints
