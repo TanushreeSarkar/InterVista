@@ -13,10 +13,16 @@ const MODEL = 'llama-3.3-70b-versatile';
 
 /**
  * Clean up markdown markers and other noise from AI JSON responses.
+ * Also handles cases where the model wraps JSON poorly.
  */
 function cleanJsonResponse(raw: string): string {
-  const jsonMatch = raw.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-  return jsonMatch ? jsonMatch[0] : raw;
+  let cleaned = raw;
+  if (cleaned.startsWith('```json')) cleaned = cleaned.replace(/^```json/, '');
+  if (cleaned.startsWith('```')) cleaned = cleaned.replace(/^```/, '');
+  if (cleaned.endsWith('```')) cleaned = cleaned.replace(/```$/, '');
+  
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+  return jsonMatch ? jsonMatch[0] : cleaned;
 }
 
 /**
@@ -141,11 +147,11 @@ Make sure the questionFeedback array has exactly ${questions.length} items.`;
       const response = await groq.chat.completions.create({
         model: MODEL,
         messages: [
-          { role: 'system', content: persona.systemPrompt + ' You are an expert interview coach and hiring manager with 20 years experience. Analyze this complete interview and provide an extremely detailed, actionable evaluation.' },
+          { role: 'system', content: persona.systemPrompt + ' You are an expert interview coach and hiring manager with 20 years experience. Analyze this complete interview and provide an extremely detailed, actionable evaluation. CRITICAL: Identify your output format strictly as a valid JSON object without ```json markdown wrappers.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.1,
-        max_tokens: 4096,
+        max_tokens: 8000,
         response_format: { type: 'json_object' }
       });
 

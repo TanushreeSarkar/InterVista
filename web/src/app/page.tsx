@@ -1,9 +1,10 @@
 import { HeroSection } from "@/components/landing/hero-section";
 import { FeaturesSection } from "@/components/landing/features-section";
 import { HowItWorksSection } from "@/components/landing/how-it-works-section";
+import { InteractionDemoSection } from "@/components/landing/interaction-demo-section";
 import { TestimonialsSection } from "@/components/landing/testimonials-section";
-import { PricingSection } from "@/components/landing/pricing-section";
 import { CTASection } from "@/components/landing/cta-section";
+import { PricingSection } from "@/components/landing/pricing-section";
 import { EnhancedNavbar } from "@/components/layout/enhanced-navbar";
 import { Footer } from "@/components/layout/footer";
 
@@ -14,9 +15,10 @@ export default function Home() {
       <HeroSection />
       <FeaturesSection />
       <HowItWorksSection />
+      <InteractionDemoSection />
       <TestimonialsSection />
-      <PricingSection />
       <CTASection />
+      <PricingSection />
       <Footer />
     </main>
   );

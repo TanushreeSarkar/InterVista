@@ -42,8 +42,8 @@ export async function signUpWithEmail(name: string, email: string, password: str
   // 2. Set the displayName
   await updateProfile(result.user, { displayName: name });
   
-  // 3. Sync to Backend
-  const idToken = await result.user.getIdToken();
+  // 3. Sync to Backend (Wait for profile update and force refresh token)
+  const idToken = await result.user.getIdToken(true);
   return await syncSessionWithBackend(idToken, 'email');
 }
 

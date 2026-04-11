@@ -4,6 +4,8 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import { useRouter } from "next/navigation";
 import * as api from "@/lib/api";
 import { signInWithEmail, signUpWithEmail, resetPasswordEmail, signOutClient } from "@/lib/oauthHelpers";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 interface User {
   id: string;
@@ -29,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // On mount, hydrate user from cookie-based session
+  // On mount, hydrate user from cookie-based session and keep sync with Firebase
   useEffect(() => {
     async function hydrate() {
       try {
@@ -45,6 +47,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     hydrate();
+
+    if (auth) {
+      const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        if (firebaseUser) {
+          // If Firebase restores session but backend cookie is missing/expired, re-sync.
+          try {
+             await api.getMe();
+          } catch {
+             // Cookie missing, so let's re-verify to generate it
+             const idToken = await firebaseUser.getIdToken();
+             // Assuming oauthHelpers will fetch proper provider context via verify-firebase endpoint if needed, 
+             // but we'll use a direct fetch here to re-hydrate properly.
+             const providerId = firebaseUser.providerData[0]?.providerId === 'password' ? 'email' : 'google';
+             const res = await fetch('/api/auth/verify-firebase', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({ idToken, provider: providerId })
+             });
+             const json = await res.json();
+             if (json.data && json.data.user) {
+               setUser(json.data.user);
+             }
+          }
+        }
+      });
+      return () => unsubscribe();
+    }
   }, []);
 
   const signIn = useCallback(async (email: string, password: string, redirectTo: string = "/dashboard") => {

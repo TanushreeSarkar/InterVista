@@ -112,13 +112,13 @@ export function NewSessionDialog({
               placeholder="e.g. Software Engineer"
             />
             {showRoleSuggestions && (
-              <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+              <div className="absolute z-50 w-full bg-white dark:bg-[#111118] border border-gray-200 dark:border-[#1E1E2E] rounded-md shadow-lg max-h-60 overflow-y-auto mt-1">
                 {roles
-                  .filter(r => r.toLowerCase().includes(role.toLowerCase()))
+                  .filter((r) => r.toLowerCase().includes(role.toLowerCase()))
                   .map((r) => (
                     <div
                       key={r}
-                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                      className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-[#1E1E2E] text-gray-900 dark:text-[#A1A1AA] dark:hover:text-[#F4F4F5] cursor-pointer text-sm transition-colors"
                       onMouseDown={(e) => {
                         e.preventDefault();
                         setRole(r);

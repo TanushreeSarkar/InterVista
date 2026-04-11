@@ -6,15 +6,16 @@ import { motion } from "framer-motion";
 import { Plus, Search, Bell, Chrome, Zap, Terminal, Briefcase, BellOff, ArrowLeft, Menu } from "lucide-react";
 import Link from "next/link";
 import { NewSessionDialog } from "@/components/dashboard/new-session-dialog";
-import { getSessions, type InterviewSession } from "@/lib/api";
+import { getSessions, getAnalyticsOverview, type InterviewSession, type AnalyticsOverview } from "@/lib/api";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useAuth } from "@/contexts/auth-context";
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
-  const [, setSessions] = useState<InterviewSession[]>([]);
-  const [, setLoading] = useState(true);
+  const [sessions, setSessions] = useState<InterviewSession[]>([]);
+  const [analytics, setAnalytics] = useState<AnalyticsOverview | null>(null);
+  const [loading, setLoading] = useState(true);
   const [showNewSession, setShowNewSession] = useState(false);
   const [activeTab, setActiveTab] = useState("Software Engineering");
   const [sessionDefaults, setSessionDefaults] = useState<{ role?: string, difficulty?: string, personaId?: string }>({});
@@ -43,17 +44,21 @@ export default function DashboardPage() {
       return;
     }
     if (isAuthenticated) {
-      loadSessions();
+      loadData();
     }
   }, [authLoading, isAuthenticated, router]);
 
-  async function loadSessions() {
+  async function loadData() {
     try {
       setLoading(true);
-      const data = await getSessions();
-      setSessions(data);
+      const [sessionsData, analyticsData] = await Promise.all([
+        getSessions(),
+        getAnalyticsOverview()
+      ]);
+      setSessions(sessionsData);
+      setAnalytics(analyticsData);
     } catch (error) {
-      console.error("Failed to load sessions:", error);
+      console.error("Failed to load dashboard data:", error);
       setSessions([]);
     } finally {
       setLoading(false);
@@ -181,10 +186,10 @@ export default function DashboardPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                { label: "Interviews Completed", value: "12", icon: "✓", color: "10B981", bgHover: "hover:-translate-y-0.5 hover:border-[#10B981]/50" },
-                { label: "Avg. Score", value: "78%", icon: "📊", color: "22D3EE", bgHover: "hover:-translate-y-0.5 hover:border-[#22D3EE]/50" },
-                { label: "Streak", value: "5 days 🔥", icon: "🔥", color: "F59E0B", bgHover: "hover:-translate-y-0.5 hover:border-[#F59E0B]/50" },
-                { label: "Questions Practiced", value: "47", icon: "⚡", color: "6366F1", bgHover: "hover:-translate-y-0.5 hover:border-[#6366F1]/50" }
+                { label: "Interviews Completed", value: analytics ? analytics.totalSessions.toString() : "0", icon: "✓", color: "10B981", bgHover: "hover:-translate-y-0.5 hover:border-[#10B981]/50" },
+                { label: "Avg. Score", value: analytics && analytics.averageScore > 0 ? `${analytics.averageScore}%` : "N/A", icon: "📊", color: "22D3EE", bgHover: "hover:-translate-y-0.5 hover:border-[#22D3EE]/50" },
+                { label: "Streak", value: analytics ? `${analytics.streak} days 🔥` : "0 days 🔥", icon: "🔥", color: "F59E0B", bgHover: "hover:-translate-y-0.5 hover:border-[#F59E0B]/50" },
+                { label: "Questions Practiced", value: analytics ? (analytics.totalSessions * 5).toString() : "0", icon: "⚡", color: "6366F1", bgHover: "hover:-translate-y-0.5 hover:border-[#6366F1]/50" }
               ].map((stat, i) => (
                 <motion.div
                   initial={{ opacity: 0, y: 15 }}
@@ -287,7 +292,7 @@ export default function DashboardPage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
               <h2 className="font-['DM_Sans',sans-serif] text-xl font-bold text-gray-900 dark:text-[#F4F4F5]">Mock Interviews</h2>
               <div className="flex flex-wrap gap-2">
-                {["Behavioral", "Software Engineering", "Product Manager", "Marketing"].map(tab => (
+                {["Behavioral", "Software Engineering", "Product Manager", "Marketing", "Sales", "Data Science", "Design"].map(tab => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -307,7 +312,10 @@ export default function DashboardPage() {
                 { title: "Behavioral Basics", role: "Any Role", difficulty: "Easy", icon: <Briefcase className="w-5 h-5" />, colorClass: "text-[#10B981]", bgClass: "bg-[#10B981]/10", diffColor: "text-[#10B981] bg-[#10B981]/10 border-[#10B981]/20", personaId: "casey" },
                 { title: "Software Engineering", role: "Software Engineer", difficulty: "Hard", icon: <Terminal className="w-5 h-5" />, colorClass: "text-[#6366F1]", bgClass: "bg-[#6366F1]/10", diffColor: "text-[#EF4444] bg-[#EF4444]/10 border-[#EF4444]/20", personaId: "morgan" },
                 { title: "Product Manager", role: "Product Manager", difficulty: "Medium", icon: <Briefcase className="w-5 h-5" />, colorClass: "text-purple-500", bgClass: "bg-purple-500/10", diffColor: "text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/20", personaId: "alex" },
-                { title: "Marketing Strategy", role: "Marketing Manager", difficulty: "Medium", icon: <Chrome className="w-5 h-5" />, colorClass: "text-[#22D3EE]", bgClass: "bg-[#22D3EE]/10", diffColor: "text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/20", personaId: "jordan" }
+                { title: "Marketing Strategy", role: "Marketing Manager", difficulty: "Medium", icon: <Chrome className="w-5 h-5" />, colorClass: "text-[#22D3EE]", bgClass: "bg-[#22D3EE]/10", diffColor: "text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/20", personaId: "jordan" },
+                { title: "Sales Pitch", role: "Sales Representative", difficulty: "Hard", icon: <Zap className="w-5 h-5" />, colorClass: "text-orange-500", bgClass: "bg-orange-500/10", diffColor: "text-[#EF4444] bg-[#EF4444]/10 border-[#EF4444]/20", personaId: "morgan" },
+                { title: "Data Scientist", role: "Data Scientist", difficulty: "Hard", icon: <Terminal className="w-5 h-5" />, colorClass: "text-indigo-400", bgClass: "bg-indigo-400/10", diffColor: "text-[#EF4444] bg-[#EF4444]/10 border-[#EF4444]/20", personaId: "alex" },
+                { title: "UI/UX Design", role: "UI/UX Designer", difficulty: "Medium", icon: <Chrome className="w-5 h-5" />, colorClass: "text-pink-500", bgClass: "bg-pink-500/10", diffColor: "text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/20", personaId: "casey" }
               ].map((preset, i) => (
                 <div
                   key={i}

@@ -52,9 +52,13 @@ export default function EvaluationPage() {
           setEvaluation(data as EvaluationResult);
           setLoading(false);
         }
-      } catch (err) {
+      } catch (err: any) {
         // Stop polling on actual failure or let it retry for a bit then fail
         console.error("Evaluation poll error:", err);
+        if (err.message && err.message.toLowerCase().includes("failed")) {
+          setError(err.message);
+          setLoading(false);
+        }
       }
     };
 
