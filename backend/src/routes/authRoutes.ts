@@ -1,8 +1,6 @@
 import { Router } from 'express';
-import { signup, signin, signout, getMe, resetPassword, verifyReset, oauth } from '../controllers/authController';
+import { signout, getMe, verifyFirebaseToken, refresh } from '../controllers/authController';
 import { authMiddleware } from '../middleware/auth';
-import { validateBody } from '../middleware/validate';
-import { signupSchema, signinSchema, resetPasswordSchema, verifyResetSchema } from '../validators';
 import rateLimit from 'express-rate-limit';
 
 // Auth routes: 10 req / 15 min per IP (prevent brute force)
@@ -18,12 +16,10 @@ const authLimiter = rateLimit({
 
 const router = Router();
 
-router.post('/signup', authLimiter, validateBody(signupSchema), signup);
-router.post('/signin', authLimiter, validateBody(signinSchema), signin);
-router.post('/oauth', authLimiter, oauth);
+// Single unified route for verifying Firebase logic. (Handles OAuth logging in + Email signing in + creating users).
+router.post('/verify-firebase', authLimiter, verifyFirebaseToken);
 router.post('/signout', authMiddleware, signout);
 router.get('/me', authMiddleware, getMe);
-router.post('/reset-password', authLimiter, validateBody(resetPasswordSchema), resetPassword);
-router.post('/verify-reset', authLimiter, validateBody(verifyResetSchema), verifyReset);
+router.post('/refresh', authMiddleware, refresh);
 
 export const authRoutes = router;

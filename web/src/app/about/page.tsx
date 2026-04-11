@@ -1,128 +1,69 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { EnhancedNavbar } from "@/components/layout/enhanced-navbar";
 import { Footer } from "@/components/layout/footer";
+import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
-import { Target, Users, Zap, Award } from "lucide-react";
 
 export default function AboutPage() {
-  const values = [
-    {
-      icon: Target,
-      title: "Mission-Driven",
-      description: "Empowering job seekers with AI-powered interview preparation",
-    },
-    {
-      icon: Users,
-      title: "User-Centric",
-      description: "Built with feedback from thousands of successful candidates",
-    },
-    {
-      icon: Zap,
-      title: "Innovation",
-      description: "Cutting-edge AI technology for realistic interview practice",
-    },
-    {
-      icon: Award,
-      title: "Excellence",
-      description: "Committed to delivering the best interview preparation experience",
-    },
-  ];
-
   return (
-    <main className="min-h-screen">
+    <div className="min-h-screen flex flex-col pt-16 bg-background">
       <EnhancedNavbar />
-      
-      <div className="pt-24 pb-16">
-        <div className="container mx-auto px-4">
+      <main className="flex-1 py-16">
+        <div className="container mx-auto px-4 max-w-4xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="max-w-4xl mx-auto text-center mb-16"
+            transition={{ duration: 0.5 }}
+            className="text-center mb-16"
           >
-            <h1 className="text-5xl font-bold mb-6">About InterVista</h1>
+            <h1 className="text-4xl md:text-5xl font-bold mb-6">About InterVista</h1>
             <p className="text-xl text-muted-foreground">
-              We&apos;re on a mission to help everyone ace their interviews with AI-powered practice
+              We are on a mission to democratize interview preparation and help candidates put their best foot forward.
             </p>
           </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="max-w-3xl mx-auto mb-16"
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="space-y-12"
           >
-            <Card>
-              <CardContent className="p-8">
-                <h2 className="text-2xl font-bold mb-4">Our Story</h2>
-                <p className="text-muted-foreground mb-4">
-                  InterVista was founded by a team of engineers and career coaches who experienced
-                  firsthand the challenges of interview preparation. We realized that traditional
-                  methods weren&apos;t enough in today&apos;s competitive job market.
+            <section>
+              <h2 className="text-2xl font-bold mb-4">Our Story</h2>
+              <div className="prose prose-lg dark:prose-invert max-w-none text-foreground/80">
+                <p>
+                  InterVista was founded with a simple observation: technical skills alone aren&apos;t enough to land a great job. Communication, confidence, and articulation play a massive role, yet there were few tools available to practice these specifically.
                 </p>
-                <p className="text-muted-foreground mb-4">
-                  By combining artificial intelligence with proven interview techniques, we created
-                  a platform that provides realistic practice sessions with instant, actionable
-                  feedback.
+                <p>
+                  We built InterVista to provide a realistic, stress-free environment where candidates can practice with an AI interviewer that understands context, asks follow-up questions, and provides actionable feedback.
                 </p>
-                <p className="text-muted-foreground">
-                  Today, we&apos;re proud to help thousands of job seekers prepare for their dream roles
-                  and land offers at top companies worldwide.
-                </p>
-              </CardContent>
-            </Card>
-          </motion.div>
+              </div>
+            </section>
 
-          <div className="mb-16">
-            <h2 className="text-3xl font-bold text-center mb-12">Our Values</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {values.map((value, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.1 * index }}
-                >
-                  <Card className="h-full">
-                    <CardContent className="p-6 text-center">
-                      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <value.icon className="w-6 h-6 text-primary" />
-                      </div>
-                      <h3 className="font-semibold mb-2">{value.title}</h3>
-                      <p className="text-sm text-muted-foreground">{value.description}</p>
+            <section>
+              <h2 className="text-2xl font-bold mb-8">Our Values</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {[
+                  { title: "Empowerment", desc: "We believe everyone deserves the tools to succeed." },
+                  { title: "Continuous Learning", desc: "Feedback is the breakfast of champions." },
+                  { title: "Accessibility", desc: "High-quality interview prep shouldn't be a luxury." },
+                  { title: "Innovation", desc: "Always pushing the boundaries of what AI can do for education." }
+                ].map((value, i) => (
+                  <Card key={i} className="bg-card/50 backdrop-blur-sm border-white/5 shadow-lg relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <CardContent className="pt-6 relative z-10">
+                      <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors">{value.title}</h3>
+                      <p className="text-muted-foreground">{value.desc}</p>
                     </CardContent>
                   </Card>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="max-w-3xl mx-auto"
-          >
-            <Card>
-              <CardContent className="p-8">
-                <h2 className="text-2xl font-bold mb-4">Join Us</h2>
-                <p className="text-muted-foreground mb-4">
-                  We&apos;re always looking for talented individuals to join our team. If you&apos;re
-                  passionate about helping people succeed in their careers, we&apos;d love to hear from
-                  you.
-                </p>
-                <a href="/careers" className="text-primary hover:underline font-medium">
-                  View Open Positions →
-                </a>
-              </CardContent>
-            </Card>
+                ))}
+              </div>
+            </section>
           </motion.div>
         </div>
-      </div>
-
+      </main>
       <Footer />
-    </main>
+    </div>
   );
 }

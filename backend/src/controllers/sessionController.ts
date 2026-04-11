@@ -208,3 +208,48 @@ export async function listPersonas(
 ): Promise<void> {
   res.json({ data: getAllPersonas() });
 }
+
+import { successResponse, errorResponse } from '../lib/apiResponse';
+
+/**
+ * DELETE /api/sessions/:id
+ */
+export async function deleteSession(
+  req: AuthRequest, res: Response, next: NextFunction
+): Promise<void> {
+  try {
+    const userId = req.user!.sub;
+    const sessionId = req.params.id as string;
+    const sessionRef = getDb().collection('sessions').doc(sessionId);
+    const sessionDoc = await sessionRef.get();
+    
+    if (!sessionDoc.exists) { 
+      res.status(404).json(errorResponse('NOT_FOUND', 'Session not found.')); 
+      return; 
+    }
+    if (sessionDoc.data()!.userId !== userId) { 
+      res.status(403).json(errorResponse('FORBIDDEN', 'Forbidden.')); 
+      return; 
+    }
+
+    // Delete associated questions, answers, and evaluations using batch
+    const batch = getDb().batch();
+    batch.delete(sessionRef);
+
+    const questionsSnap = await getDb().collection('questions').where('sessionId', '==', sessionId).get();
+    questionsSnap.docs.forEach((doc) => batch.delete(doc.ref));
+
+    const answersSnap = await getDb().collection('answers').where('sessionId', '==', sessionId).get();
+    answersSnap.docs.forEach((doc) => batch.delete(doc.ref));
+
+    const evalSnap = await getDb().collection('evaluations').where('sessionId', '==', sessionId).get();
+    evalSnap.docs.forEach((doc) => batch.delete(doc.ref));
+
+    await batch.commit();
+
+    res.status(200).json(successResponse({ success: true }));
+  } catch (error: any) { 
+    res.status(500).json(errorResponse('INTERNAL_ERROR', 'Failed to delete session', error.message));
+  }
+}
+

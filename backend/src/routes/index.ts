@@ -7,6 +7,9 @@ import { questionBankRoutes } from './questionBankRoutes';
 import { analyticsRoutes } from './analyticsRoutes';
 import { userRoutes } from './userRoutes';
 import { ttsRoutes } from './ttsRoutes';
+import { reportRoutes } from './reportRoutes';
+import { subscriptionRoutes } from './subscriptionRoutes';
+import { publicRoutes } from './publicRoutes';
 
 const router = Router();
 
@@ -32,5 +35,8 @@ router.use('/question-banks', questionBankRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/users', userRoutes);
 router.use('/tts', aiLimiter, ttsRoutes);
+router.use('/reports', reportRoutes);
+router.use('/subscription', subscriptionRoutes);
+router.use('/public', publicRoutes);
 
 export const apiRouter = router;

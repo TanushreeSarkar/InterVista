@@ -67,6 +67,7 @@ export interface InterviewSession {
   company: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';
   status: 'pending' | 'in_progress' | 'completed';
+  personaId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -223,19 +224,7 @@ export interface TranscriptItem {
 export type Transcript = TranscriptItem[];
 
 // ─── Auth API ──────────────────────────────────────────────
-export async function signIn(email: string, password: string): Promise<AuthResponse> {
-  return apiFetch<AuthResponse>('/api/auth/signin', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  });
-}
-
-export async function signUp(name: string, email: string, password: string): Promise<AuthResponse> {
-  return apiFetch<AuthResponse>('/api/auth/signup', {
-    method: 'POST',
-    body: JSON.stringify({ name, email, password }),
-  });
-}
+// Removed signIn and signUp as they are now handled client-side via Firebase Auth + /api/auth/verify-firebase
 
 export async function signOut(): Promise<void> {
   await apiFetch<{ message: string }>('/api/auth/signout', {
@@ -247,19 +236,7 @@ export async function getMe(): Promise<User> {
   return apiFetch<User>('/api/auth/me');
 }
 
-export async function resetPassword(email: string): Promise<{ message: string }> {
-  return apiFetch<{ message: string }>('/api/auth/reset-password', {
-    method: 'POST',
-    body: JSON.stringify({ email }),
-  });
-}
-
-export async function verifyReset(email: string, otp: string, newPassword: string): Promise<{ message: string }> {
-  return apiFetch<{ message: string }>('/api/auth/verify-reset', {
-    method: 'POST',
-    body: JSON.stringify({ email, otp, newPassword }),
-  });
-}
+// Removed manual resetPassword and verifyReset functions because Firebase natively handles password resets.
 
 // ─── Sessions API ──────────────────────────────────────────
 export async function createSession(data: {
@@ -408,3 +385,71 @@ export async function getRecommendations(): Promise<string[]> {
 export async function getPersonas(): Promise<Persona[]> {
   return apiFetch<Persona[]>('/api/sessions/personas');
 }
+
+export async function deleteSession(sessionId: string): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>(`/api/sessions/${encodeURIComponent(sessionId)}`, {
+    method: 'DELETE',
+  });
+}
+
+// ─── Reports API ───────────────────────────────────────────
+export async function getReports(): Promise<any[]> {
+  return apiFetch<any[]>('/api/reports');
+}
+
+export async function getReportById(reportId: string): Promise<any> {
+  return apiFetch<any>(`/api/reports/${encodeURIComponent(reportId)}`);
+}
+
+// ─── Subscription API ──────────────────────────────────────
+export async function getSubscriptionStatus(): Promise<any> {
+  return apiFetch<any>('/api/subscription/status');
+}
+
+export async function createCheckoutSession(): Promise<{ url: string }> {
+  return apiFetch<{ url: string }>('/api/subscription/checkout', {
+    method: 'POST',
+  });
+}
+
+export async function createPortalSession(): Promise<{ url: string }> {
+  return apiFetch<{ url: string }>('/api/subscription/portal', {
+    method: 'POST',
+  });
+}
+
+// ─── Public API ────────────────────────────────────────────
+export async function subscribeNewsletter(email: string): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>('/api/public/newsletter', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function submitContactForm(data: { name: string; email: string; message: string }): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>('/api/public/contact', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// ─── Advanced Analytics API ────────────────────────────────
+export async function getAnalyticsTrend(): Promise<any> {
+  return apiFetch<any>('/api/analytics/trend');
+}
+
+export async function getAnalyticsWeaknesses(): Promise<any> {
+  return apiFetch<any>('/api/analytics/weaknesses');
+}
+
+export async function getAnalyticsImprovement(): Promise<any> {
+  return apiFetch<any>('/api/analytics/improvement');
+}
+
+// ─── Auth Refresh API ──────────────────────────────────────
+export async function refreshSession(): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>('/api/auth/refresh', {
+    method: 'POST',
+  });
+}
+

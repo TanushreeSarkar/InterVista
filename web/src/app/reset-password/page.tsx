@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { Loader2, Mail, ArrowLeft, CheckCircle } from "lucide-react";
-import * as api from "@/lib/api";
+import { resetPasswordEmail } from "@/lib/oauthHelpers";
 
 export default function ResetPasswordPage() {
   const [email, setEmail] = useState("");
@@ -23,7 +23,7 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      await api.resetPassword(email);
+      await resetPasswordEmail(email);
       setSuccess(true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
@@ -41,9 +41,9 @@ export default function ResetPasswordPage() {
         className="w-full max-w-md"
       >
         <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
+          <Link href="/" className="flex justify-center mb-4" aria-label="Back to home">
             <Logo size="lg" animated />
-          </div>
+          </Link>
           <h1 className="text-3xl font-bold mb-2">Reset Password</h1>
           <p className="text-muted-foreground">
             Enter your email to receive a reset link

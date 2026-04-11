@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 const protectedRoutes = ['/dashboard','/interview','/evaluation',
-  '/analytics','/question-banks','/profile','/settings']
+  '/analytics','/question-banks','/profile','/settings', '/reports', '/onboarding']
 const authRoutes = ['/sign-in','/sign-up','/reset-password']
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
+  const { pathname, search } = request.nextUrl
 
   // Skip middleware for static files and api routes
   if (
@@ -27,7 +27,8 @@ export function middleware(request: NextRequest) {
   // Not authenticated trying to access protected route
   if (isProtected && !isAuthenticated) {
     const url = new URL('/sign-in', request.url)
-    url.searchParams.set('from', pathname)
+    // Preserve full path plus query parameters
+    url.searchParams.set('from', `${pathname}${search}`)
     return NextResponse.redirect(url)
   }
 

@@ -88,55 +88,69 @@ export function PricingSection() {
               transition={{ duration: 0.5, delay: index * 0.15 }}
             >
               <Card
-                className={`h-full relative ${
+                className={`group h-full relative border-white/5 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl overflow-hidden backdrop-blur-xl bg-card/60 ${
                   plan.popular
-                    ? "border-primary border-2 shadow-xl scale-105"
-                    : "border-2 hover:border-primary/50"
-                } transition-all duration-300`}
+                    ? "border-primary/50 shadow-[0_0_30px_rgba(139,92,246,0.1)] scale-105 hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] hover:border-primary z-10"
+                    : "hover:border-primary/30 hover:shadow-[0_0_25px_rgba(139,92,246,0.1)]"
+                }`}
               >
+                {/* Gradient animation border for popular plan */}
                 {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-gradient-primary text-white px-4 py-1">
+                  <>
+                    <div className="absolute inset-0 z-0 bg-gradient-to-br from-primary/30 to-blue-500/30 opacity-20 pointer-events-none" />
+                    <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary to-transparent" />
+                  </>
+                )}
+                
+                {plan.popular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
+                    <Badge className="bg-gradient-to-r from-purple-600 to-blue-600 border-none text-white px-4 py-1.5 shadow-lg">
                       <Zap className="w-3 h-3 mr-1" />
                       Most Popular
                     </Badge>
                   </div>
                 )}
 
-                <CardHeader className="text-center pt-8">
-                  <CardTitle className="text-2xl mb-2">{plan.name}</CardTitle>
-                  <CardDescription className="mb-4">
-                    {plan.description}
-                  </CardDescription>
-                  <div className="mb-4">
-                    <span className="text-5xl font-bold">{plan.price}</span>
-                    {plan.price !== "Custom" && (
-                      <span className="text-muted-foreground">/month</span>
-                    )}
-                  </div>
-                </CardHeader>
+                <div className="relative z-10 h-full flex flex-col">
+                  <CardHeader className="text-center pt-8">
+                    <CardTitle className="text-2xl mb-2 group-hover:text-primary transition-colors">{plan.name}</CardTitle>
+                    <CardDescription className="mb-4">
+                      {plan.description}
+                    </CardDescription>
+                    <div className="mb-4">
+                      <span className="text-5xl font-bold">{plan.price}</span>
+                      {plan.price !== "Custom" && (
+                        <span className="text-muted-foreground">/month</span>
+                      )}
+                    </div>
+                  </CardHeader>
 
-                <CardContent>
-                  <ul className="space-y-3">
-                    {plan.features.map((feature, i) => (
-                      <li key={i} className="flex items-start">
-                        <Check className="w-5 h-5 text-primary mr-2 flex-shrink-0 mt-0.5" />
-                        <span className="text-sm">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
+                  <CardContent className="flex-1">
+                    <ul className="space-y-3">
+                      {plan.features.map((feature, i) => (
+                        <li key={i} className="flex items-start">
+                          <Check className="w-5 h-5 text-primary mr-2 flex-shrink-0 mt-0.5" />
+                          <span className="text-sm">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
 
-                <CardFooter>
-                  <Button
-                    className="w-full"
-                    variant={plan.popular ? "default" : "outline"}
-                    size="lg"
-                    asChild
-                  >
-                    <Link href="/sign-up">{plan.cta}</Link>
-                  </Button>
-                </CardFooter>
+                  <CardFooter>
+                    <Button
+                      className={`w-full transition-all duration-300 ${
+                        plan.popular 
+                          ? "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 border-0 shadow-lg text-white group-hover:shadow-indigo-500/25" 
+                          : "bg-background/50 hover:bg-primary/20 hover:text-primary group-hover:border-primary/50"
+                      }`}
+                      variant={plan.popular ? "default" : "outline"}
+                      size="lg"
+                      asChild
+                    >
+                      <Link href="/sign-up">{plan.cta}</Link>
+                    </Button>
+                  </CardFooter>
+                </div>
               </Card>
             </motion.div>
           ))}

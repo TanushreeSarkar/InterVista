@@ -1,8 +1,6 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -12,18 +10,23 @@ import { Separator } from "@/components/ui/separator";
 import { Logo } from "@/components/ui/logo";
 import { Mail, Lock, Loader2, ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { signInWithGoogle, signInWithGitHub } from "@/lib/oauthHelpers";
 
-export default function SignInPage() {
+function SignInForm() {
   const { signIn, setUser } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<"google" | "github" | "">("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+
+  const sessionExpired = searchParams?.get("session") === "expired";
+  const [error, setError] = useState(sessionExpired ? "Your session has expired. Please sign in again." : "");
+
+  const from = searchParams?.get("from") || "/dashboard";
 
   const handleOAuth = async (provider: "google" | "github") => {
     try {
@@ -32,7 +35,7 @@ export default function SignInPage() {
       const result = (provider === "google" ? await signInWithGoogle() : await signInWithGitHub()) as { user?: any };
       if (result.user) {
         setUser(result.user);
-        router.push("/dashboard");
+        router.push(from);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : `Failed to sign in with ${provider}`);
@@ -47,8 +50,7 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      await signIn(email, password);
-      // signIn redirects to /dashboard on success
+      await signIn(email, password, from);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to sign in");
     } finally {
@@ -65,9 +67,9 @@ export default function SignInPage() {
         className="w-full max-w-md"
       >
         <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
+          <Link href="/" className="flex justify-center mb-4" aria-label="Back to home">
             <Logo size="lg" animated />
-          </div>
+          </Link>
           <h1 className="text-3xl font-bold mb-2">Welcome Back</h1>
           <p className="text-muted-foreground">Sign in to continue your interview practice</p>
         </div>
@@ -166,5 +168,17 @@ export default function SignInPage() {
         </Card>
       </motion.div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    }>
+      <SignInForm />
+    </Suspense>
   );
 }

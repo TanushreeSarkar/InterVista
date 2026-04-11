@@ -55,51 +55,56 @@ export function TestimonialsSection() {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {testimonials.map((testimonial, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 50 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.5, delay: index * 0.15 }}
-            >
-              <Card className="h-full hover:shadow-xl transition-shadow duration-300 border-2 hover:border-primary/50">
-                <CardContent className="pt-6">
-                  <div className="flex items-center mb-4">
-                    <Image
-                      src={testimonial.avatar}
-                      alt={testimonial.name}
-                      width={48}
-                      height={48}
-                      className="rounded-full mr-4 object-cover"
-                    />
-                    <div>
-                      <div className="font-semibold">{testimonial.name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {testimonial.role}
+        <div className="relative overflow-hidden w-full max-w-7xl mx-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          {/* Gradient fade edges */}
+          <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-muted/50 to-transparent z-10 pointer-events-none hidden md:block" />
+          <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-muted/50 to-transparent z-10 pointer-events-none hidden md:block" />
+
+          {/* Marquee Container */}
+          <div className="flex md:animate-marquee md:hover:[animation-play-state:paused] md:w-max flex-col md:flex-row gap-8 pb-4">
+            {[...testimonials, ...testimonials].map((testimonial, index) => (
+              <div
+                key={index}
+                className="w-full md:w-[400px] shrink-0"
+              >
+                <Card className="h-full hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/50 hover:scale-105 bg-card/60 backdrop-blur-sm group">
+                  <CardContent className="pt-6 relative">
+                    <div className="flex items-center mb-4">
+                      <Image
+                        src={testimonial.avatar}
+                        alt={testimonial.name}
+                        width={48}
+                        height={48}
+                        className="rounded-full mr-4 object-cover ring-2 ring-primary/20 group-hover:ring-primary/50 transition-all"
+                      />
+                      <div>
+                        <div className="font-semibold group-hover:text-primary transition-colors">{testimonial.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {testimonial.role}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex mb-4">
-                    {Array.from({ length: testimonial.rating }).map((_, i) => (
-                      <Star
-                        key={i}
-                        className="w-4 h-4 fill-yellow-400 text-yellow-400"
-                      />
-                    ))}
-                  </div>
+                    <div className="flex mb-4">
+                      {Array.from({ length: Math.floor(testimonial.rating) }).map((_, i) => (
+                        <Star
+                          key={i}
+                          className="w-4 h-4 fill-yellow-400 text-yellow-400 drop-shadow-md"
+                        />
+                      ))}
+                    </div>
 
-                  <div className="relative">
-                    <Quote className="w-8 h-8 text-primary/20 absolute -top-2 -left-2" />
-                    <p className="text-muted-foreground pl-6">
-                      {testimonial.text}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
+                    <div className="relative">
+                      <Quote className="w-8 h-8 text-primary/10 absolute -top-4 -left-2 group-hover:text-primary/20 transition-colors" />
+                      <p className="text-muted-foreground pl-6 relative z-10 leading-relaxed">
+                        {testimonial.text}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>

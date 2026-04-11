@@ -10,11 +10,17 @@ import {
   PlayCircle, 
   Settings, 
   LogOut,
-  X 
+  X,
+  Home 
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 
 const navItems = [
+    {
+        title: "Home",
+        href: "/",
+        icon: Home,
+    },
     {
         title: "Dashboard",
         href: "/dashboard",
@@ -70,7 +76,7 @@ export function Sidebar({ mobileOpen = false, setMobileOpen, onSignOutClick }: S
         >
             {/* Header: Logo */}
             <div className="flex h-16 items-center px-6 border-b border-gray-200 dark:border-[#1E1E2E] shrink-0 justify-between">
-                <Link className="flex items-center gap-2 font-semibold" href="/dashboard">
+                <Link className="flex items-center gap-2 font-semibold" href="/">
                     {/* SVG Icon Logo */}
                     <div className="text-indigo-600 dark:text-[#6366F1]">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

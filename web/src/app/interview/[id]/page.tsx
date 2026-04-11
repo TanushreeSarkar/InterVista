@@ -4,11 +4,36 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Loader2, Mic, AlertCircle, PlaySquare, SkipForward, Send } from "lucide-react";
-import { getSessionQuestions, submitAnswer, getTtsAudio, type Question } from "@/lib/api";
+import { Loader2, Mic, MicOff, AlertCircle, PlaySquare, SkipForward, Send, PhoneOff, Video, VideoOff, Wifi, WifiOff, CheckCircle2, Camera, Volume2 } from "lucide-react";
+import { getSessionQuestions, getSession as getSessionData, submitAnswer, getTtsAudio, type Question } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 
-// Cross-browser SpeechRecognition
+// ─── Filler Word Detection ──────────────────────────────────────
+const FILLER_WORDS = [
+  "um", "uh", "uhh", "umm", "hmm", "hm",
+  "like", "basically", "actually", "literally",
+  "you know", "i mean", "sort of", "kind of",
+  "right", "so yeah", "and stuff", "or whatever",
+];
+
+function countFillers(text: string): { total: number; breakdown: Record<string, number> } {
+  const lower = text.toLowerCase();
+  const breakdown: Record<string, number> = {};
+  let total = 0;
+
+  for (const filler of FILLER_WORDS) {
+    // Use word boundary regex to avoid partial matches
+    const regex = new RegExp(`\\b${filler.replace(/\s+/g, "\\s+")}\\b`, "gi");
+    const matches = lower.match(regex);
+    if (matches && matches.length > 0) {
+      breakdown[filler] = matches.length;
+      total += matches.length;
+    }
+  }
+  return { total, breakdown };
+}
+
+// ─── Cross-browser SpeechRecognition ────────────────────────────
 const getSpeechRecognition = () => {
   if (typeof window !== "undefined") {
     return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -16,105 +41,195 @@ const getSpeechRecognition = () => {
   return null;
 };
 
+// ─── Types ──────────────────────────────────────────────────────
+type InterviewPhase = "lobby" | "interview" | "ending";
+type InterviewStatus = "Starting..." | "Processing..." | "Speaking..." | "Listening...";
+
+interface DeviceCheck {
+  camera: "checking" | "granted" | "denied";
+  microphone: "checking" | "granted" | "denied";
+  connection: "checking" | "good" | "poor" | "offline";
+}
+
+// ─── Session Metadata ───────────────────────────────────────────
+interface SessionMeta {
+  role: string;
+  company: string;
+  difficulty: string;
+  personaId?: string;
+}
+
 export default function InterviewPage() {
   const params = useParams();
   const router = useRouter();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const sessionId = params.id as string;
 
-  // Data state
+  // ─── Phase ────────────────────────────────────────────────────
+  const [phase, setPhase] = useState<InterviewPhase>("lobby");
+
+  // ─── Device Checks ────────────────────────────────────────────
+  const [deviceCheck, setDeviceCheck] = useState<DeviceCheck>({
+    camera: "checking",
+    microphone: "checking",
+    connection: "checking",
+  });
+
+  // ─── Session Metadata ─────────────────────────────────────────
+  const [sessionMeta, setSessionMeta] = useState<SessionMeta>({ role: "Loading...", company: "...", difficulty: "Medium" });
+
+  // ─── Data State ───────────────────────────────────────────────
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Interview state
-  const [status, setStatus] = useState<"Starting..." | "Processing..." | "Speaking..." | "Listening...">("Starting...");
+  // ─── Interview State ──────────────────────────────────────────
+  const [status, setStatus] = useState<InterviewStatus>("Starting...");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState("");
-  const [timeLeft, setTimeLeft] = useState(120); // 2 minutes
+  const [timeLeft, setTimeLeft] = useState(120);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSavedMsg, setShowSavedMsg] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isCameraOff, setIsCameraOff] = useState(false);
 
-  // Fallback for no speech recognition
+  // ─── Filler Word Tracking ─────────────────────────────────────
+  const [fillerCount, setFillerCount] = useState(0);
+  const [fillerBreakdown, setFillerBreakdown] = useState<Record<string, number>>({});
+  const [sessionFillerTotal, setSessionFillerTotal] = useState(0);
+
+  // ─── Fallback ─────────────────────────────────────────────────
   const [hasSpeechRecognition, setHasSpeechRecognition] = useState(true);
   const [fallbackText, setFallbackText] = useState("");
 
-  // Refs
+  // ─── Refs ─────────────────────────────────────────────────────
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const recognitionRef = useRef<any>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const transcriptRef = useRef(transcript);
+  const fallbackTextRef = useRef(fallbackText);
 
-  // Typewriter effect state
+  // ─── Typewriter ───────────────────────────────────────────────
   const [displayedQuestion, setDisplayedQuestion] = useState("");
   const typeWriterIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Camera setup
+  // Keep refs in sync
+  useEffect(() => { transcriptRef.current = transcript; }, [transcript]);
+  useEffect(() => { fallbackTextRef.current = fallbackText; }, [fallbackText]);
+
+  // ─── Update filler count whenever transcript changes ──────────
   useEffect(() => {
-    async function setupCamera() {
+    if (transcript) {
+      const { total, breakdown } = countFillers(transcript);
+      setFillerCount(total);
+      setFillerBreakdown(breakdown);
+    }
+  }, [transcript]);
+
+  // ═══════════════════════════════════════════════════════════════
+  // LOBBY: Device Checks
+  // ═══════════════════════════════════════════════════════════════
+  useEffect(() => {
+    if (phase !== "lobby") return;
+
+    // Connection check
+    const checkConnection = () => {
+      if (!navigator.onLine) {
+        setDeviceCheck(prev => ({ ...prev, connection: "offline" }));
+      } else {
+        setDeviceCheck(prev => ({ ...prev, connection: "good" }));
+      }
+    };
+    checkConnection();
+    window.addEventListener("online", checkConnection);
+    window.addEventListener("offline", checkConnection);
+
+    // Camera + Mic check
+    async function checkDevices() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
-      } catch (err) {
-        console.warn("Camera access denied or unavailable", err);
+        setDeviceCheck(prev => ({ ...prev, camera: "granted", microphone: "granted" }));
+      } catch (err: any) {
+        console.warn("Device access error:", err);
+        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+          setDeviceCheck(prev => ({ ...prev, camera: "denied", microphone: "denied" }));
+        } else {
+          // Might be only one device failing, try individually
+          try {
+            await navigator.mediaDevices.getUserMedia({ audio: true });
+            setDeviceCheck(prev => ({ ...prev, microphone: "granted" }));
+          } catch { setDeviceCheck(prev => ({ ...prev, microphone: "denied" })); }
+          try {
+            const vs = await navigator.mediaDevices.getUserMedia({ video: true });
+            streamRef.current = vs;
+            if (videoRef.current) videoRef.current.srcObject = vs;
+            setDeviceCheck(prev => ({ ...prev, camera: "granted" }));
+          } catch { setDeviceCheck(prev => ({ ...prev, camera: "denied" })); }
+        }
       }
     }
-    setupCamera();
-    return () => {
-      // Cleanup camera
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, []);
+    checkDevices();
 
-  // Fetch Questions
+    return () => {
+      window.removeEventListener("online", checkConnection);
+      window.removeEventListener("offline", checkConnection);
+    };
+  }, [phase]);
+
+  // ═══════════════════════════════════════════════════════════════
+  // LOBBY: Fetch Session Metadata + Questions
+  // ═══════════════════════════════════════════════════════════════
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push("/sign-in");
       return;
     }
     if (isAuthenticated && sessionId) {
-      loadQuestions();
+      loadSessionData();
     }
   }, [authLoading, isAuthenticated, sessionId, router]);
 
-  async function loadQuestions() {
+  async function loadSessionData() {
     try {
       setLoading(true);
-      const data = await getSessionQuestions(sessionId);
-      setQuestions(data);
+      const [sessionInfo, questionsData] = await Promise.all([
+        getSessionData(sessionId),
+        getSessionQuestions(sessionId),
+      ]);
+      setSessionMeta({
+        role: sessionInfo.role || "Candidate",
+        company: sessionInfo.company || "Company",
+        difficulty: sessionInfo.difficulty || "Medium",
+        personaId: sessionInfo.personaId,
+      });
+      setQuestions(questionsData);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to load questions");
+      setError(err instanceof Error ? err.message : "Failed to load session");
     } finally {
       setLoading(false);
     }
   }
 
-  // Question Flow Logic
+  // ═══════════════════════════════════════════════════════════════
+  // INTERVIEW: Question Flow
+  // ═══════════════════════════════════════════════════════════════
   useEffect(() => {
-    if (loading || questions.length === 0 || currentQuestionIndex >= questions.length) return;
+    if (phase !== "interview" || loading || questions.length === 0 || currentQuestionIndex >= questions.length) return;
     startQuestion(questions[currentQuestionIndex].text);
-
-    return () => {
-      stopCurrentAction();
-    };
-  }, [currentQuestionIndex, loading, questions]);
+    return () => { stopCurrentAction(); };
+  }, [phase, currentQuestionIndex, loading, questions]);
 
   function stopCurrentAction() {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = "";
-    }
-    if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch (e) { }
-    }
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; }
+    if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch {} }
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
     if (typeWriterIntervalRef.current) clearInterval(typeWriterIntervalRef.current);
@@ -126,9 +241,11 @@ export default function InterviewPage() {
     setFallbackText("");
     setTimeLeft(120);
     setDisplayedQuestion("");
+    setFillerCount(0);
+    setFillerBreakdown({});
     setStatus("Processing...");
 
-    // Setup Typewriter
+    // Typewriter effect
     let cursor = 0;
     typeWriterIntervalRef.current = setInterval(() => {
       if (cursor <= text.length) {
@@ -139,7 +256,7 @@ export default function InterviewPage() {
       }
     }, 40);
 
-    // Fetch and play TTS
+    // TTS
     try {
       const blob = await getTtsAudio(text, sessionId);
       const url = URL.createObjectURL(blob);
@@ -148,13 +265,11 @@ export default function InterviewPage() {
       await audioRef.current.play();
       setStatus("Speaking...");
       setIsSpeaking(true);
-
       audioRef.current.onended = () => {
         setIsSpeaking(false);
         startListening();
       };
-    } catch (e) {
-      console.error("TTS Failed, skipping to listening", e);
+    } catch {
       setIsSpeaking(false);
       if (typeWriterIntervalRef.current) clearInterval(typeWriterIntervalRef.current);
       setDisplayedQuestion(text);
@@ -167,6 +282,7 @@ export default function InterviewPage() {
     if (!SpeechRecognition) {
       setHasSpeechRecognition(false);
       setStatus("Listening...");
+      startCountdown();
       return;
     }
 
@@ -186,35 +302,28 @@ export default function InterviewPage() {
         if (event.results[i].isFinal) finalTranscript += tr + " ";
         else interimTranscript += tr;
       }
-      setTranscript(finalTranscript + interimTranscript);
-      resetSilenceTimer(finalTranscript + interimTranscript);
+      const fullText = finalTranscript + interimTranscript;
+      setTranscript(fullText);
+      resetSilenceTimer(fullText);
     };
 
-    recognition.onerror = (e: any) => {
-      console.warn("Speech recognition error:", e.error);
-    };
-
+    recognition.onerror = () => {};
     recognition.onend = () => {
-      // If we are still supposed to be listening, restart it
-      if (status === "Listening..." && timeLeft > 0) {
-        try { recognition.start(); } catch (e) { }
-      }
+      // Auto-restart if still in listening phase
+      try { if (recognitionRef.current === recognition) recognition.start(); } catch {}
     };
 
-    try { recognition.start(); } catch (e) { }
-
-    // Start timers
+    try { recognition.start(); } catch {}
     resetSilenceTimer("");
     startCountdown();
-  }, [status, timeLeft]);
+  }, []);
 
   function resetSilenceTimer(currentText: string) {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-    if (!currentText.trim()) return; // Don't trigger auto-advance if they haven't spoken yet
-
+    if (!currentText.trim()) return;
     silenceTimerRef.current = setTimeout(() => {
       handleAdvanceQuestion(currentText);
-    }, 6000); // 6 seconds of silence
+    }, 6000);
   }
 
   function startCountdown() {
@@ -222,20 +331,13 @@ export default function InterviewPage() {
     countdownTimerRef.current = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
-          handleAdvanceQuestion(transcript); // closure issue, better fetch it from state or handle differently, but transcript changes won't trigger this closure correctly.
-          // Wait, prev <= 1 means timeout. We will just trigger submit.
-          setTimeout(() => document.getElementById('auto-submit-btn')?.click(), 0);
+          setTimeout(() => document.getElementById("auto-submit-btn")?.click(), 0);
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
   }
-
-  // Use a ref to get the latest transcript for the auto-submit to avoid stale closures
-  const transcriptRef = useRef(transcript);
-  const fallbackTextRef = useRef(fallbackText);
-  useEffect(() => { transcriptRef.current = transcript; fallbackTextRef.current = fallbackText; }, [transcript, fallbackText]);
 
   async function handleAdvanceQuestion(finalTextToSubmit?: string) {
     if (isSubmitting) return;
@@ -244,6 +346,10 @@ export default function InterviewPage() {
 
     const question = questions[currentQuestionIndex];
     const textToSubmit = finalTextToSubmit !== undefined ? finalTextToSubmit : (hasSpeechRecognition ? transcriptRef.current : fallbackTextRef.current);
+
+    // Accumulate filler count for the session
+    const { total } = countFillers(textToSubmit);
+    setSessionFillerTotal(prev => prev + total);
 
     try {
       await submitAnswer({
@@ -263,35 +369,226 @@ export default function InterviewPage() {
         }
         setIsSubmitting(false);
       }, 1000);
-
     } catch (err) {
       console.error(err);
       setIsSubmitting(false);
     }
   }
 
-  // UI Helpers
+  // ─── End Call ──────────────────────────────────────────────────
+  function handleEndCall() {
+    stopCurrentAction();
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+    }
+    // If at least one answer was submitted, go to evaluation
+    if (currentQuestionIndex > 0) {
+      router.push(`/evaluation/${sessionId}`);
+    } else {
+      router.push("/dashboard");
+    }
+  }
+
+  // ─── Toggle Mute / Camera ─────────────────────────────────────
+  function toggleMute() {
+    if (streamRef.current) {
+      streamRef.current.getAudioTracks().forEach(t => { t.enabled = !t.enabled; });
+      setIsMuted(prev => !prev);
+    }
+  }
+  function toggleCamera() {
+    if (streamRef.current) {
+      streamRef.current.getVideoTracks().forEach(t => { t.enabled = !t.enabled; });
+      setIsCameraOff(prev => !prev);
+    }
+  }
+
+  // ─── Cleanup on unmount ───────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      stopCurrentAction();
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+      }
+    };
+  }, []);
+
+  // ─── UI Helpers ───────────────────────────────────────────────
   const formatTime = (secs: number) => `${Math.floor(secs / 60)}:${(secs % 60).toString().padStart(2, "0")}`;
   const timerColor = timeLeft > 60 ? "text-green-400" : timeLeft > 30 ? "text-yellow-400" : "text-red-500 animate-pulse";
 
-  if (loading || authLoading) return <div className="h-screen w-full flex items-center justify-center bg-[#09090b]"><Loader2 className="w-8 h-8 text-indigo-500 animate-spin" /></div>;
-  if (error) return <div className="h-screen w-full flex items-center justify-center bg-[#09090b] text-red-500">{error}</div>;
-  if (!questions.length) return <div className="h-screen w-full flex items-center justify-center bg-[#09090b] text-white">No questions found.</div>;
+  const allChecksOk = deviceCheck.camera === "granted" && deviceCheck.microphone === "granted" && deviceCheck.connection === "good";
+
+  // ─── Loading ──────────────────────────────────────────────────
+  if (loading || authLoading) return (
+    <div className="h-screen w-full flex items-center justify-center bg-[#09090b]">
+      <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+    </div>
+  );
+  if (error) return (
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-[#09090b] text-red-500 gap-4">
+      <AlertCircle className="w-10 h-10" />
+      <p>{error}</p>
+      <Button onClick={() => router.push("/dashboard")} variant="outline">Back to Dashboard</Button>
+    </div>
+  );
+
+  // ═══════════════════════════════════════════════════════════════
+  // PHASE 1: PRE-CALL LOBBY
+  // ═══════════════════════════════════════════════════════════════
+  if (phase === "lobby") {
+    return (
+      <div className="h-screen w-full bg-[#09090b] text-zinc-100 flex flex-col items-center justify-center font-['Inter',sans-serif] p-4">
+        <div className="max-w-2xl w-full space-y-8">
+          {/* Header */}
+          <div className="text-center space-y-2">
+            <h1 className="text-3xl font-bold font-['DM_Sans',sans-serif]">Ready to Interview?</h1>
+            <p className="text-zinc-400">
+              {sessionMeta.role} at {sessionMeta.company} • {sessionMeta.difficulty} Difficulty
+            </p>
+          </div>
+
+          {/* Camera Preview */}
+          <div className="relative aspect-video max-w-md mx-auto rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 shadow-2xl">
+            <video
+              ref={videoRef}
+              autoPlay playsInline muted
+              className="w-full h-full object-cover transform -scale-x-100"
+            />
+            {deviceCheck.camera === "denied" && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 gap-3">
+                <VideoOff className="w-12 h-12 text-zinc-600" />
+                <p className="text-zinc-500 text-sm">Camera access denied</p>
+              </div>
+            )}
+            {deviceCheck.camera === "checking" && (
+              <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
+                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+              </div>
+            )}
+            {/* User name overlay */}
+            <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur px-3 py-1 rounded-lg text-xs font-medium text-zinc-200">
+              {user?.name || "You"}
+            </div>
+          </div>
+
+          {/* Device Check Status Cards */}
+          <div className="grid grid-cols-3 gap-4">
+            {/* Camera */}
+            <div className={`rounded-xl border p-4 text-center space-y-2 transition-all ${
+              deviceCheck.camera === "granted" ? "border-green-500/40 bg-green-500/5" :
+              deviceCheck.camera === "denied" ? "border-red-500/40 bg-red-500/5" :
+              "border-zinc-800 bg-zinc-900"
+            }`}>
+              <Camera className={`w-6 h-6 mx-auto ${
+                deviceCheck.camera === "granted" ? "text-green-400" :
+                deviceCheck.camera === "denied" ? "text-red-400" : "text-zinc-500"
+              }`} />
+              <p className="text-xs font-medium text-zinc-300">Camera</p>
+              <p className={`text-xs font-bold ${
+                deviceCheck.camera === "granted" ? "text-green-400" :
+                deviceCheck.camera === "denied" ? "text-red-400" : "text-zinc-500"
+              }`}>
+                {deviceCheck.camera === "granted" ? "Ready" : deviceCheck.camera === "denied" ? "Blocked" : "Checking..."}
+              </p>
+            </div>
+
+            {/* Microphone */}
+            <div className={`rounded-xl border p-4 text-center space-y-2 transition-all ${
+              deviceCheck.microphone === "granted" ? "border-green-500/40 bg-green-500/5" :
+              deviceCheck.microphone === "denied" ? "border-red-500/40 bg-red-500/5" :
+              "border-zinc-800 bg-zinc-900"
+            }`}>
+              <Volume2 className={`w-6 h-6 mx-auto ${
+                deviceCheck.microphone === "granted" ? "text-green-400" :
+                deviceCheck.microphone === "denied" ? "text-red-400" : "text-zinc-500"
+              }`} />
+              <p className="text-xs font-medium text-zinc-300">Microphone</p>
+              <p className={`text-xs font-bold ${
+                deviceCheck.microphone === "granted" ? "text-green-400" :
+                deviceCheck.microphone === "denied" ? "text-red-400" : "text-zinc-500"
+              }`}>
+                {deviceCheck.microphone === "granted" ? "Ready" : deviceCheck.microphone === "denied" ? "Blocked" : "Checking..."}
+              </p>
+            </div>
+
+            {/* Connection */}
+            <div className={`rounded-xl border p-4 text-center space-y-2 transition-all ${
+              deviceCheck.connection === "good" ? "border-green-500/40 bg-green-500/5" :
+              deviceCheck.connection === "offline" ? "border-red-500/40 bg-red-500/5" :
+              "border-zinc-800 bg-zinc-900"
+            }`}>
+              {deviceCheck.connection === "good" ? (
+                <Wifi className="w-6 h-6 mx-auto text-green-400" />
+              ) : deviceCheck.connection === "offline" ? (
+                <WifiOff className="w-6 h-6 mx-auto text-red-400" />
+              ) : (
+                <Wifi className="w-6 h-6 mx-auto text-zinc-500" />
+              )}
+              <p className="text-xs font-medium text-zinc-300">Connection</p>
+              <p className={`text-xs font-bold ${
+                deviceCheck.connection === "good" ? "text-green-400" :
+                deviceCheck.connection === "offline" ? "text-red-400" : "text-zinc-500"
+              }`}>
+                {deviceCheck.connection === "good" ? "Stable" : deviceCheck.connection === "offline" ? "Offline" : "Checking..."}
+              </p>
+            </div>
+          </div>
+
+          {/* Info box */}
+          <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4 text-sm text-indigo-200 space-y-1">
+            <p className="font-semibold text-indigo-300">Before you start:</p>
+            <ul className="list-disc list-inside space-y-0.5 text-indigo-300/80">
+              <li>{questions.length} questions will be asked by the AI interviewer</li>
+              <li>Each question has a 2-minute time limit</li>
+              <li>Your filler words (um, uh, like...) are tracked for feedback</li>
+              <li>Speak clearly and naturally — the AI will listen and transcribe</li>
+            </ul>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-4 justify-center">
+            <Button variant="outline" onClick={() => router.push("/dashboard")} className="border-zinc-700 text-zinc-400 hover:text-white">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => setPhase("interview")}
+              disabled={!allChecksOk || questions.length === 0}
+              className="bg-green-600 hover:bg-green-700 text-white px-8 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {allChecksOk ? (
+                <><CheckCircle2 className="w-5 h-5 mr-2" /> Join Interview</>
+              ) : (
+                <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Checking Devices...</>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // PHASE 2: LIVE INTERVIEW (Zoom-style)
+  // ═══════════════════════════════════════════════════════════════
+  if (!questions.length) return (
+    <div className="h-screen w-full flex items-center justify-center bg-[#09090b] text-white">No questions found.</div>
+  );
 
   return (
     <div className="h-screen w-full bg-[#09090b] text-zinc-100 flex flex-col font-['Inter',sans-serif] overflow-hidden select-none">
       <audio ref={audioRef} className="hidden" />
       <button id="auto-submit-btn" className="hidden" onClick={() => handleAdvanceQuestion()} />
 
-      {/* TOP BAR */}
-      <header className="h-16 shrink-0 border-b border-zinc-800/50 px-6 flex items-center justify-between bg-[#09090b] z-20">
+      {/* ─── TOP BAR ─────────────────────────────────────────── */}
+      <header className="h-16 shrink-0 border-b border-zinc-800/50 px-6 flex items-center justify-between bg-[#09090b]/90 backdrop-blur-sm z-20">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center">
             <PlaySquare className="w-4 h-4 text-indigo-400" />
           </div>
           <div>
-            <div className="text-sm font-semibold text-zinc-200">Software Engineer</div>
-            <div className="text-xs text-zinc-500">Google • Tech Interview</div>
+            <div className="text-sm font-semibold text-zinc-200">{sessionMeta.role}</div>
+            <div className="text-xs text-zinc-500">{sessionMeta.company} • {sessionMeta.difficulty}</div>
           </div>
         </div>
 
@@ -309,12 +606,25 @@ export default function InterviewPage() {
           </div>
         </div>
 
-        <div className={`font-mono text-xl font-bold w-24 text-right ${timerColor}`}>
-          {status === "Listening..." ? formatTime(timeLeft) : "2:00"}
+        <div className="flex items-center gap-4">
+          {/* Filler Word Counter */}
+          {status === "Listening..." && fillerCount > 0 && (
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-yellow-500/15 border border-yellow-500/30 px-3 py-1 rounded-full flex items-center gap-2"
+            >
+              <span className="text-yellow-400 text-xs font-bold">Fillers: {fillerCount}</span>
+            </motion.div>
+          )}
+
+          <div className={`font-mono text-xl font-bold w-24 text-right ${timerColor}`}>
+            {status === "Listening..." ? formatTime(timeLeft) : "2:00"}
+          </div>
         </div>
       </header>
 
-      {/* MAIN LAYOUT */}
+      {/* ─── MAIN LAYOUT ─────────────────────────────────────── */}
       <div className="flex-1 flex overflow-hidden">
 
         {/* LEFT PANEL: AI INTERVIEWER (70%) */}
@@ -323,27 +633,17 @@ export default function InterviewPage() {
 
           {/* AI Avatar */}
           <div className="relative mb-8">
-            {/* Pulsing rings when speaking */}
             <AnimatePresence>
               {isSpeaking && (
                 <>
-                  <motion.div
-                    initial={{ scale: 1, opacity: 0.5 }}
-                    animate={{ scale: 1.8, opacity: 0 }}
-                    transition={{ repeat: Infinity, duration: 1.5, ease: "easeOut" }}
-                    className="absolute inset-0 rounded-full border border-indigo-500/50"
-                  />
-                  <motion.div
-                    initial={{ scale: 1, opacity: 0.5 }}
-                    animate={{ scale: 1.5, opacity: 0 }}
-                    transition={{ repeat: Infinity, duration: 1.5, delay: 0.5, ease: "easeOut" }}
-                    className="absolute inset-0 rounded-full border border-cyan-400/30"
-                  />
+                  <motion.div initial={{ scale: 1, opacity: 0.5 }} animate={{ scale: 1.8, opacity: 0 }} transition={{ repeat: Infinity, duration: 1.5, ease: "easeOut" }}
+                    className="absolute inset-0 rounded-full border border-indigo-500/50" />
+                  <motion.div initial={{ scale: 1, opacity: 0.5 }} animate={{ scale: 1.5, opacity: 0 }} transition={{ repeat: Infinity, duration: 1.5, delay: 0.5, ease: "easeOut" }}
+                    className="absolute inset-0 rounded-full border border-cyan-400/30" />
                 </>
               )}
             </AnimatePresence>
 
-            {/* Core Avatar */}
             <div className="w-32 h-32 rounded-full bg-zinc-900 border border-zinc-700 shadow-2xl relative z-10 flex items-center justify-center overflow-hidden">
               <div className="w-full h-full bg-gradient-to-br from-indigo-900 to-zinc-900 opacity-80" />
               <svg className="w-12 h-12 text-indigo-400 absolute" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -361,34 +661,42 @@ export default function InterviewPage() {
           <div className="max-w-xl text-center px-6">
             <p className="text-xl md:text-2xl font-light text-zinc-200 leading-relaxed min-h-[120px]">
               {displayedQuestion}
-              {status === "Speaking..." && <span className="inline-block w-2h-5 bg-indigo-400 ml-1 animate-pulse" />}
+              {status === "Speaking..." && <span className="inline-block w-0.5 h-6 bg-indigo-400 ml-1 animate-pulse" />}
             </p>
           </div>
 
-          {/* Fallback Textarea, or Transcript overlay */}
+          {/* Transcript / Fallback Textarea */}
           <div className="absolute bottom-10 left-10 right-10 flex justify-center">
             {status === "Listening..." && hasSpeechRecognition ? (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                className="max-w-2xl w-full p-4 rounded-xl bg-zinc-900/80 backdrop-blur-sm border border-zinc-700/50"
-              >
-                <div className="flex items-center gap-2 mb-2 text-xs text-green-400 font-medium uppercase tracking-wider">
-                  <Mic className="w-3 h-3 animate-pulse" /> Live Transcript
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                className="max-w-2xl w-full p-4 rounded-xl bg-zinc-900/80 backdrop-blur-sm border border-zinc-700/50">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 text-xs text-green-400 font-medium uppercase tracking-wider">
+                    <Mic className="w-3 h-3 animate-pulse" /> Live Transcript
+                  </div>
+                  {/* Live filler breakdown */}
+                  {fillerCount > 0 && (
+                    <div className="flex gap-2 flex-wrap">
+                      {Object.entries(fillerBreakdown).slice(0, 3).map(([word, count]) => (
+                        <span key={word} className="text-[10px] bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
+                          &quot;{word}&quot; ×{count}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <p className="text-zinc-300 text-sm leading-relaxed h-16 overflow-y-auto custom-scrollbar">
                   {transcript || <span className="text-zinc-600 italic">Listening to your response...</span>}
                 </p>
               </motion.div>
             ) : status === "Listening..." && !hasSpeechRecognition ? (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                className="max-w-2xl w-full"
-              >
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                className="max-w-2xl w-full">
                 <label className="text-xs text-zinc-400 mb-2 block uppercase tracking-wider">Type your answer</label>
                 <textarea
                   autoFocus
                   className="w-full h-32 bg-zinc-900/80 border border-zinc-700 rounded-xl p-4 text-zinc-200 focus:outline-none focus:border-indigo-500 resize-none text-sm"
-                  placeholder="Speech recognition not supported in this browser. Please type your answer..."
+                  placeholder="Speech recognition not supported. Please type your answer..."
                   value={fallbackText}
                   onChange={e => setFallbackText(e.target.value)}
                 />
@@ -400,36 +708,31 @@ export default function InterviewPage() {
               </motion.div>
             ) : null}
           </div>
-
         </div>
 
         {/* RIGHT PANEL: USER CAMERA (30%) */}
         <div className="flex-[3] bg-[#09090b] border-l border-zinc-800/50 p-6 flex flex-col relative">
           <div className="flex-1 rounded-2xl bg-zinc-900 overflow-hidden relative border border-zinc-800 shadow-inner">
-            {/* Camera feed */}
             <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover transform -scale-x-100"
+              ref={phase === "interview" ? undefined : videoRef}
+              autoPlay playsInline muted
+              className={`w-full h-full object-cover transform -scale-x-100 ${isCameraOff ? 'hidden' : ''}`}
             />
-
-            {/* If camera fails, fallback is black with this */}
-            {!streamRef.current && (
-              <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
+            {isCameraOff && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 gap-2">
                 <div className="w-20 h-20 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-600 border border-zinc-700">
-                  <AlertCircle className="w-8 h-8" />
+                  <VideoOff className="w-8 h-8" />
                 </div>
+                <p className="text-zinc-600 text-xs">Camera Off</p>
               </div>
             )}
 
-            {/* Mic / Name overlay */}
+            {/* Name + mic indicator */}
             <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
               <div className="bg-zinc-950/80 backdrop-blur px-3 py-1.5 rounded-lg border border-zinc-800 flex items-center gap-2">
-                <div className="text-xs font-semibold text-zinc-200">You</div>
+                <div className="text-xs font-semibold text-zinc-200">{user?.name || "You"}</div>
               </div>
-              {status === "Listening..." && (
+              {status === "Listening..." && !isMuted && (
                 <div className="flex gap-[3px] items-end h-4 w-6">
                   {[1, 2, 3].map(i => (
                     <motion.div
@@ -441,34 +744,78 @@ export default function InterviewPage() {
                   ))}
                 </div>
               )}
+              {isMuted && (
+                <div className="bg-red-500/20 p-1.5 rounded-lg">
+                  <MicOff className="w-3 h-3 text-red-400" />
+                </div>
+              )}
             </div>
+          </div>
+
+          {/* Session Filler Summary */}
+          <div className="mt-4 bg-zinc-900/50 rounded-xl border border-zinc-800 p-3 text-center">
+            <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Session Filler Words</p>
+            <p className={`text-2xl font-bold font-mono ${sessionFillerTotal > 10 ? 'text-red-400' : sessionFillerTotal > 5 ? 'text-yellow-400' : 'text-green-400'}`}>
+              {sessionFillerTotal}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* BOTTOM BAR */}
-      <footer className="h-14 shrink-0 border-t border-zinc-800/50 px-6 flex items-center justify-center bg-[#09090b]">
+      {/* ─── BOTTOM BAR (Zoom-style controls) ────────────────── */}
+      <footer className="h-20 shrink-0 border-t border-zinc-800/50 px-6 flex items-center justify-center bg-[#111118] gap-4">
+        {/* Mute Toggle */}
+        <button
+          onClick={toggleMute}
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+            isMuted ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+          }`}
+          title={isMuted ? "Unmute" : "Mute"}
+        >
+          {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+        </button>
+
+        {/* Camera Toggle */}
+        <button
+          onClick={toggleCamera}
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+            isCameraOff ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+          }`}
+          title={isCameraOff ? "Turn Camera On" : "Turn Camera Off"}
+        >
+          {isCameraOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+        </button>
+
+        {/* Skip Question */}
         <Button
           variant="ghost"
           size="sm"
           onClick={() => handleAdvanceQuestion(hasSpeechRecognition ? transcript : fallbackText)}
           disabled={isSubmitting || status === "Starting..." || status === "Processing..."}
-          className="text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors"
+          className="text-zinc-400 hover:text-white hover:bg-zinc-800 h-12 px-5"
         >
-          <SkipForward className="w-4 h-4 mr-2" /> Skip Question
+          <SkipForward className="w-4 h-4 mr-2" /> Skip
         </Button>
+
+        {/* END CALL BUTTON */}
+        <button
+          onClick={handleEndCall}
+          className="w-14 h-12 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center transition-all shadow-lg shadow-red-500/20"
+          title="End Interview"
+        >
+          <PhoneOff className="w-5 h-5 text-white" />
+        </button>
       </footer>
 
-      {/* Submission Overlay */}
+      {/* ─── Submission Overlay ───────────────────────────────── */}
       <AnimatePresence>
         {isSubmitting && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center">
             {showSavedMsg ? (
-              <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-green-500/20 text-green-400 px-6 py-3 rounded-2xl flex items-center gap-3 font-semibold text-lg border border-green-500/30 shadow-2xl">
-                <Mic className="w-5 h-5" /> Answer saved ✓
+              <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }}
+                className="bg-green-500/20 text-green-400 px-6 py-3 rounded-2xl flex items-center gap-3 font-semibold text-lg border border-green-500/30 shadow-2xl">
+                <CheckCircle2 className="w-5 h-5" /> Answer saved ✓
               </motion.div>
             ) : (
               <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
@@ -476,7 +823,6 @@ export default function InterviewPage() {
           </motion.div>
         )}
       </AnimatePresence>
-
     </div>
   );
 }

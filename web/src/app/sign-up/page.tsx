@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -34,7 +32,7 @@ export default function SignUpPage() {
       const result = (provider === "google" ? await signInWithGoogle() : await signInWithGitHub()) as { user?: any };
       if (result.user) {
         setUser(result.user);
-        router.push("/dashboard");
+        router.push("/onboarding");
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : `Failed to sign in with ${provider}`);
@@ -61,7 +59,6 @@ export default function SignUpPage() {
 
     try {
       await signUp(name, email, password);
-      // signUp auto-logs in and redirects to /dashboard
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to sign up");
     } finally {
@@ -78,9 +75,9 @@ export default function SignUpPage() {
         className="w-full max-w-md"
       >
         <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
+          <Link href="/" className="flex justify-center mb-4" aria-label="Back to home">
             <Logo size="lg" animated />
-          </div>
+          </Link>
           <h1 className="text-3xl font-bold mb-2">Create Account</h1>
           <p className="text-muted-foreground">
             Start practicing with AI-powered interviews

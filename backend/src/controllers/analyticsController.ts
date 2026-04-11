@@ -35,10 +35,10 @@ export async function getOverview(
 
     // Skills progress (arrays of scores over time)
     const skillsProgress = {
-      communication: evaluations.map((e) => e.skillsAssessment?.communication || 0),
-      technicalKnowledge: evaluations.map((e) => e.skillsAssessment?.technicalKnowledge || 0),
-      problemSolving: evaluations.map((e) => e.skillsAssessment?.problemSolving || 0),
-      confidence: evaluations.map((e) => e.skillsAssessment?.confidence || 0),
+      communication: evaluations.map((e) => e.skillsAssessment?.communication?.score || 0),
+      technicalKnowledge: evaluations.map((e) => e.skillsAssessment?.technicalKnowledge?.score || 0),
+      problemSolving: evaluations.map((e) => e.skillsAssessment?.problemSolving?.score || 0),
+      confidence: evaluations.map((e) => e.skillsAssessment?.confidence?.score || 0),
     };
 
     // Top roles
@@ -124,7 +124,7 @@ export async function getRecommendations(
     const userId = req.user!.sub;
     const evalsSnap = await getDb().collection('evaluations').where('userId', '==', userId).orderBy('createdAt', 'desc').limit(3).get();
 
-    const summaries = evalsSnap.docs.map((d) => d.data().summary as string).filter(Boolean);
+    const summaries = evalsSnap.docs.map((d) => d.data().executiveSummary as string).filter(Boolean);
 
     if (summaries.length === 0) {
       res.json({ data: ['Complete your first interview to get personalized recommendations'] });
@@ -134,4 +134,114 @@ export async function getRecommendations(
     const recommendations = await generateRecommendations(summaries);
     res.json({ data: recommendations });
   } catch (error) { next(error); }
+}
+
+import { successResponse, errorResponse } from '../lib/apiResponse';
+
+/**
+ * GET /api/analytics/trend
+ * Returns real score trend from Firestore evaluations.
+ */
+export async function getTrend(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.user!.sub;
+    const evalsSnap = await getDb().collection('evaluations').where('userId', '==', userId).orderBy('createdAt', 'asc').get();
+    const sessionsSnap = await getDb().collection('sessions').where('userId', '==', userId).get();
+    const sessionsMap = new Map(sessionsSnap.docs.map(d => [d.id, d.data()]));
+
+    const trend = evalsSnap.docs.map(d => {
+      const data = d.data();
+      const session = sessionsMap.get(data.sessionId);
+      return {
+        date: data.createdAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
+        score: data.overallScore || 0,
+        role: session?.role || 'Unknown',
+      };
+    });
+
+    const scores = trend.map(t => t.score);
+    let improvement = 0;
+    if (scores.length >= 2) {
+      improvement = scores[scores.length - 1] - scores[0];
+    }
+
+    res.status(200).json(successResponse({ trend, improvement }));
+  } catch (error: any) {
+    res.status(500).json(errorResponse('INTERNAL_ERROR', 'Failed to fetch trend', error.message));
+  }
+}
+
+/**
+ * GET /api/analytics/weaknesses
+ * Identifies weakest skill areas from the most recent evaluation.
+ */
+export async function getWeaknesses(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.user!.sub;
+    const evalsSnap = await getDb().collection('evaluations').where('userId', '==', userId).orderBy('createdAt', 'desc').limit(3).get();
+
+    if (evalsSnap.empty) {
+      res.status(200).json(successResponse({ weaknesses: [] }));
+      return;
+    }
+
+    // Aggregate skill scores across recent evaluations
+    const skillTotals: Record<string, { total: number; count: number }> = {};
+    for (const doc of evalsSnap.docs) {
+      const skills = doc.data().skillsAssessment;
+      if (!skills) continue;
+      for (const [key, val] of Object.entries(skills)) {
+        const score = (val as any)?.score;
+        if (typeof score === 'number') {
+          if (!skillTotals[key]) skillTotals[key] = { total: 0, count: 0 };
+          skillTotals[key].total += score;
+          skillTotals[key].count++;
+        }
+      }
+    }
+
+    const weaknesses = Object.entries(skillTotals)
+      .map(([topic, data]) => ({
+        topic: topic.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim(),
+        score: Math.round(data.total / data.count),
+        severity: Math.round(data.total / data.count) < 50 ? 'High' : Math.round(data.total / data.count) < 70 ? 'Medium' : 'Low',
+      }))
+      .filter(w => w.severity !== 'Low')
+      .sort((a, b) => a.score - b.score);
+
+    res.status(200).json(successResponse({ weaknesses }));
+  } catch (error: any) {
+    res.status(500).json(errorResponse('INTERNAL_ERROR', 'Failed to fetch weaknesses', error.message));
+  }
+}
+
+/**
+ * GET /api/analytics/improvement
+ * Extracts concrete improvement suggestions from recent evaluations.
+ */
+export async function getImprovement(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.user!.sub;
+    const evalsSnap = await getDb().collection('evaluations').where('userId', '==', userId).orderBy('createdAt', 'desc').limit(3).get();
+
+    const areas: string[] = [];
+    for (const doc of evalsSnap.docs) {
+      const data = doc.data();
+      // Collect concrete tips from interviewTips and improvementPlan
+      if (data.interviewTips && Array.isArray(data.interviewTips)) {
+        areas.push(...data.interviewTips);
+      }
+      if (data.improvementPlan && Array.isArray(data.improvementPlan)) {
+        for (const plan of data.improvementPlan) {
+          if (plan.action) areas.push(plan.action);
+        }
+      }
+    }
+
+    // Deduplicate and limit
+    const unique = [...new Set(areas)].slice(0, 6);
+    res.status(200).json(successResponse({ areas: unique.length > 0 ? unique : ['Complete your first interview to get improvement areas'] }));
+  } catch (error: any) {
+    res.status(500).json(errorResponse('INTERNAL_ERROR', 'Failed to fetch improvement', error.message));
+  }
 }

@@ -96,13 +96,16 @@ export function FeaturesSection() {
               key={index}
               className="feature-card opacity-100"
             >
-              <Card className="h-full hover:shadow-lg transition-shadow duration-300 border-2 hover:border-primary/50">
-                <CardHeader>
-                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+              <Card className="group h-full relative overflow-hidden transition-all duration-300 border-white/5 hover:border-primary/50 hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] bg-card/50 backdrop-blur-sm">
+                {/* Shimmer sweep effect */}
+                <div className="absolute inset-0 translate-x-[-150%] skew-x-[-20deg] bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 ease-in-out group-hover:translate-x-[150%] z-0" />
+                
+                <CardHeader className="relative z-10">
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4 transition-transform duration-200 group-hover:scale-110">
                     <feature.icon className="w-6 h-6 text-primary" />
                   </div>
-                  <CardTitle className="text-xl mb-2">{feature.title}</CardTitle>
-                  <CardDescription className="text-base">
+                  <CardTitle className="text-xl mb-2 group-hover:text-primary transition-colors">{feature.title}</CardTitle>
+                  <CardDescription className="text-base text-muted-foreground/80">
                     {feature.description}
                   </CardDescription>
                 </CardHeader>

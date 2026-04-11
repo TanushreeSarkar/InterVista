@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import * as api from "@/lib/api";
+import { signInWithEmail, signUpWithEmail, resetPasswordEmail, signOutClient } from "@/lib/oauthHelpers";
 
 interface User {
   id: string;
@@ -14,8 +15,8 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (name: string, email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string, redirectTo?: string) => Promise<void>;
+  signUp: (name: string, email: string, password: string, redirectTo?: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
@@ -46,21 +47,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     hydrate();
   }, []);
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    const { user: userData } = await api.signIn(email, password);
+  const signIn = useCallback(async (email: string, password: string, redirectTo: string = "/dashboard") => {
+    const { user: userData } = await signInWithEmail(email, password);
     setUser(userData);
-    router.push("/dashboard");
+    router.push(redirectTo);
   }, [router]);
 
-  const signUp = useCallback(async (name: string, email: string, password: string) => {
-    const { user: userData } = await api.signUp(name, email, password);
+  const signUp = useCallback(async (name: string, email: string, password: string, redirectTo: string = "/onboarding") => {
+    const { user: userData } = await signUpWithEmail(name, email, password);
     setUser(userData);
-    router.push("/dashboard");
+    router.push(redirectTo);
   }, [router]);
 
   const signOut = useCallback(async () => {
     try {
       await api.signOut();
+      await signOutClient();
     } catch {
       // Even if the API call fails, clear local state
     }
@@ -69,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   const resetPassword = useCallback(async (email: string) => {
-    await api.resetPassword(email);
+    await resetPasswordEmail(email);
   }, []);
 
   return (
