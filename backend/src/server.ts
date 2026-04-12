@@ -22,6 +22,9 @@ validateEnv();
 // ─── Express app ───────────────────────────────────────────
 const app = express();
 
+// Trust proxy for secure cookies in production (behind Render/Netlify/Heroku)
+app.set('trust proxy', 1);
+
 // ─── Security: Helmet ──────────────────────────────────────
 app.use(
   helmet({

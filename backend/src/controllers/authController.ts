@@ -28,7 +28,9 @@ function setAuthCookie(res: Response, token: string): void {
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: 'strict',
+    // Use 'none' in production to allow cross-domain cookies (Netlify -> Backend)
+    // Use 'lax' in development for localhost
+    sameSite: isProduction ? 'none' : 'lax',
     maxAge: maxAgeMs,
     path: '/',
   });
@@ -55,7 +57,7 @@ export async function signout(
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: 'strict',
+    sameSite: isProduction ? 'none' : 'lax',
     path: '/',
   });
   res.json({ data: { message: 'Signed out successfully.' } });

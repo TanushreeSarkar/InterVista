@@ -4,7 +4,8 @@ import {
   signInWithEmailAndPassword, 
   updateProfile,
   sendPasswordResetEmail,
-  signOut as firebaseSignOut
+  signOut as firebaseSignOut,
+  signInWithRedirect
 } from 'firebase/auth';
 import { auth, googleProvider, githubProvider } from './firebase';
 import { apiFetch, AuthResponse } from './api';
@@ -13,7 +14,7 @@ import { apiFetch, AuthResponse } from './api';
  * Common handler to send Firebase ID token to our backend
  * so the backend can issue an HttpOnly JWT session cookie.
  */
-async function syncSessionWithBackend(idToken: string, provider: string): Promise<AuthResponse> {
+export async function syncSessionWithBackend(idToken: string, provider: string): Promise<AuthResponse> {
   return await apiFetch<AuthResponse>('/api/auth/verify-firebase', {
     method: 'POST',
     body: JSON.stringify({ idToken, provider }),
@@ -22,16 +23,14 @@ async function syncSessionWithBackend(idToken: string, provider: string): Promis
 
 export async function signInWithGoogle() {
   if (!auth) throw new Error("Firebase Auth is not initialized.");
-  const result = await signInWithPopup(auth, googleProvider);
-  const idToken = await result.user.getIdToken();
-  return await syncSessionWithBackend(idToken, 'google');
+  // Using redirect for better production reliability
+  await signInWithRedirect(auth, googleProvider);
 }
 
 export async function signInWithGitHub() {
   if (!auth) throw new Error("Firebase Auth is not initialized.");
-  const result = await signInWithPopup(auth, githubProvider);
-  const idToken = await result.user.getIdToken();
-  return await syncSessionWithBackend(idToken, 'github');
+  // Using redirect for better production reliability
+  await signInWithRedirect(auth, githubProvider);
 }
 
 export async function signUpWithEmail(name: string, email: string, password: string) {
