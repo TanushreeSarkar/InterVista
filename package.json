@@ -1,4 +1,10 @@
 {
+  "name": "intervista-root",
+  "private": true,
+  "scripts": {
+    "build": "npm install --prefix backend && npm run build --prefix backend",
+    "start": "npm start --prefix backend"
+  },
   "dependencies": {
     "lenis": "^1.3.21"
   }

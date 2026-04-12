@@ -4,13 +4,12 @@ services:
     env: node
     region: oregon
     plan: free
-    rootDir: backend
-    buildCommand: npm install && npm run build
+    # Removed rootDir: backend to use the root package.json delegation.
+    # This is more robust as it works with Render's default behaviors.
+    buildCommand: npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
-    # Make sure to add your secret variables like JWT_SECRET, GROQ_API_KEY, 
-    # FIREBASE_PRIVATE_KEY, etc. safely in the Render Dashboard after deploying.
