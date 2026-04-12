@@ -3,12 +3,13 @@ import { signout, getMe, verifyFirebaseToken, refresh } from '../controllers/aut
 import { authMiddleware } from '../middleware/auth';
 import rateLimit from 'express-rate-limit';
 
-// Auth routes: 10 req / 15 min per IP (prevent brute force)
+// Auth routes: 20 req / 15 min per IP (prevent brute force)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => process.env.NODE_ENV !== 'production', // Only rate-limit in production
   handler: (_req, res) => {
     res.status(429).json({ error: 'Too many requests', retryAfter: 900 });
   },

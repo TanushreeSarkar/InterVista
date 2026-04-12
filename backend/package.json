@@ -9,6 +9,9 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit"
   },
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "bcrypt": "^5.1.1",

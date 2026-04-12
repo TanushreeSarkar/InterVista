@@ -10,7 +10,7 @@ const firebaseConfig = {
 
 // Initialize Firebase only if the API key is provided
 let app;
-if (typeof window !== 'undefined' || firebaseConfig.apiKey) {
+if (firebaseConfig.apiKey) {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 }
 

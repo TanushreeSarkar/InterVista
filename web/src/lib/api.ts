@@ -2,6 +2,11 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+// Warn loudly in production if API URL is not configured
+if (typeof window !== 'undefined' && !process.env.NEXT_PUBLIC_API_URL && process.env.NODE_ENV === 'production') {
+  console.error('[InterVista] NEXT_PUBLIC_API_URL is not set! API calls will fail in production.');
+}
+
 // ─── Core fetch wrapper ────────────────────────────────────
 export async function apiFetch<T>(
   path: string,

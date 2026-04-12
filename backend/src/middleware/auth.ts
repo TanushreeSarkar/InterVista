@@ -36,7 +36,13 @@ export async function authMiddleware(
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload & { jti?: string };
     
     if (decoded.jti && await isBlocked(decoded.jti)) {
-      res.clearCookie(COOKIE_NAME, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/' });
+      const isProduction = process.env.NODE_ENV === 'production';
+      res.clearCookie(COOKIE_NAME, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+        path: '/'
+      });
       res.status(401).json({ error: 'Session expired. Please sign in again.' });
       return;
     }
@@ -45,13 +51,24 @@ export async function authMiddleware(
     next();
   } catch (error: any) {
     if (error.name === 'TokenExpiredError') {
-      // Clear expired cookie
-      res.clearCookie(COOKIE_NAME, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/' });
+      const isProduction = process.env.NODE_ENV === 'production';
+      res.clearCookie(COOKIE_NAME, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+        path: '/'
+      });
       res.status(401).json({ error: 'Token has expired. Please sign in again.' });
       return;
     }
     if (error.name === 'JsonWebTokenError') {
-      res.clearCookie(COOKIE_NAME, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/' });
+      const isProduction = process.env.NODE_ENV === 'production';
+      res.clearCookie(COOKIE_NAME, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+        path: '/'
+      });
       res.status(401).json({ error: 'Invalid token. Please sign in again.' });
       return;
     }
