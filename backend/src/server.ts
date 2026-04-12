@@ -26,19 +26,12 @@ const app = express();
 app.set('trust proxy', 1);
 
 // ─── Security: Helmet ──────────────────────────────────────
+// In production, disable Helmet's CSP since Netlify sets its own headers
+// and the API is a pure JSON backend (no HTML pages to protect).
 app.use(
   helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", 'data:', 'blob:'],
-        mediaSrc: ["'self'", 'blob:'],
-        frameSrc: ["'none'"],
-        connectSrc: ["'self'"],
-      },
-    },
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
     hsts: {
       maxAge: 31536000, // 1 year
       includeSubDomains: true,
@@ -91,10 +84,10 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // ─── Rate limiting ─────────────────────────────────────────
-// Global: 100 requests per 15 minutes per IP
+// Global: 500 requests per 15 minutes per IP
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 500,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (_req, res) => {
@@ -113,6 +106,14 @@ app.use('/api', apiRouter);
 // ─── Health check ──────────────────────────────────────────
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ─── Catch-all 404 for unmatched routes ────────────────────
+app.use((_req, res) => {
+  res.status(404).json({
+    error: 'Route not found',
+    hint: 'All API endpoints are prefixed with /api. Try /health or /api/auth/me',
+  });
 });
 
 // ─── Global error handler ──────────────────────────────────
