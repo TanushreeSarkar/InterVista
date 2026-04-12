@@ -434,16 +434,16 @@ export async function submitContactForm(data: { name: string; email: string; mes
 }
 
 // ─── Advanced Analytics API ────────────────────────────────
-export async function getAnalyticsTrend(): Promise<any> {
-  return apiFetch<any>('/api/analytics/trend');
+export async function getAnalyticsTrend(): Promise<unknown> {
+  return apiFetch<unknown>('/api/analytics/trend');
 }
 
-export async function getAnalyticsWeaknesses(): Promise<any> {
-  return apiFetch<any>('/api/analytics/weaknesses');
+export async function getAnalyticsWeaknesses(): Promise<unknown> {
+  return apiFetch<unknown>('/api/analytics/weaknesses');
 }
 
-export async function getAnalyticsImprovement(): Promise<any> {
-  return apiFetch<any>('/api/analytics/improvement');
+export async function getAnalyticsImprovement(): Promise<unknown> {
+  return apiFetch<unknown>('/api/analytics/improvement');
 }
 
 // ─── Auth Refresh API ──────────────────────────────────────

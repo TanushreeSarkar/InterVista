@@ -1,5 +1,4 @@
 import { 
-  signInWithPopup, 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
   updateProfile,
