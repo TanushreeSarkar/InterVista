@@ -4,7 +4,7 @@ import {
   updateProfile,
   sendPasswordResetEmail,
   signOut as firebaseSignOut,
-  signInWithRedirect
+  signInWithPopup
 } from 'firebase/auth';
 import { auth, googleProvider, githubProvider } from './firebase';
 import { apiFetch, AuthResponse } from './api';
@@ -22,14 +22,16 @@ export async function syncSessionWithBackend(idToken: string, provider: string):
 
 export async function signInWithGoogle() {
   if (!auth) throw new Error("Firebase Auth is not initialized.");
-  // Using redirect for better production reliability
-  await signInWithRedirect(auth, googleProvider);
+  const result = await signInWithPopup(auth, googleProvider);
+  const idToken = await result.user.getIdToken();
+  return await syncSessionWithBackend(idToken, 'google');
 }
 
 export async function signInWithGitHub() {
   if (!auth) throw new Error("Firebase Auth is not initialized.");
-  // Using redirect for better production reliability
-  await signInWithRedirect(auth, githubProvider);
+  const result = await signInWithPopup(auth, githubProvider);
+  const idToken = await result.user.getIdToken();
+  return await syncSessionWithBackend(idToken, 'github');
 }
 
 export async function signUpWithEmail(name: string, email: string, password: string) {

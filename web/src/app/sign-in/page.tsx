@@ -32,17 +32,22 @@ function SignInForm() {
     try {
       setOauthLoading(provider);
       setError("");
-      // Using redirect, so the page will reload soon
+      
+      let result;
       if (provider === "google") {
-        await signInWithGoogle();
+        result = await signInWithGoogle();
       } else {
-        await signInWithGitHub();
+        result = await signInWithGitHub();
+      }
+      
+      if (result?.user) {
+        setUser(result.user);
+        router.push(from);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : `Failed to sign in with ${provider}`);
       setOauthLoading("");
     }
-    // No finally block here as the page is likely navigating away
   };
 
   async function handleSubmit(e: React.FormEvent) {

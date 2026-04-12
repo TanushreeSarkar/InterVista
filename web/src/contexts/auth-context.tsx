@@ -68,22 +68,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       });
 
-      // Handle Redirect Result (for Google/GitHub sign-in)
-      getRedirectResult(auth).then(async (result) => {
-        if (result?.user) {
-          const idToken = await result.user.getIdToken();
-          // Normalize provider ID for backend (google.com -> google, github.com -> github)
-          const firebaseProvider = result.user.providerData[0]?.providerId;
-          const providerId = firebaseProvider === 'google.com' ? 'google' : 'github';
-          
-          const { user: userData } = await syncSessionWithBackend(idToken, providerId);
-          setUser(userData);
-          router.push("/dashboard");
-        }
-      }).catch((error) => {
-        console.error("Redirect sign-in error:", error);
-      });
-
       return () => unsubscribe();
     }
   }, []);

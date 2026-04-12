@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
 import { signInWithGoogle, signInWithGitHub } from "@/lib/oauthHelpers";
 
 export default function SignUpPage() {
-  const { signUp } = useAuth();
+  const { signUp, setUser } = useAuth();
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -29,17 +29,22 @@ export default function SignUpPage() {
     try {
       setOauthLoading(provider);
       setError("");
-      // Using redirect — page will navigate away and return after auth
+      
+      let result;
       if (provider === "google") {
-        await signInWithGoogle();
+        result = await signInWithGoogle();
       } else {
-        await signInWithGitHub();
+        result = await signInWithGitHub();
+      }
+      
+      if (result?.user) {
+        setUser(result.user);
+        router.push("/dashboard");
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : `Failed to sign in with ${provider}`);
       setOauthLoading("");
     }
-    // No finally block: page is navigating away on success
   };
 
   async function handleSubmit(e: React.FormEvent) {
