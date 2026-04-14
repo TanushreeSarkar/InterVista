@@ -1,10 +1,10 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import * as api from "@/lib/api";
 import { signInWithEmail, signUpWithEmail, resetPasswordEmail, signOutClient, syncSessionWithBackend } from "@/lib/oauthHelpers";
-import { onAuthStateChanged, getRedirectResult } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 interface User {
@@ -31,57 +31,81 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // On mount, hydrate user from cookie-based session and keep sync with Firebase
+  // Flag to prevent onAuthStateChanged from interfering during manual sign-in/sign-up flows.
+  // When signIn/signUp is called, we set this to true so the listener skips its logic —
+  // the manual flow already handles session sync and user state.
+  const skipAuthStateChangeRef = useRef(false);
+
+  // Use Firebase as the source of truth and only stop loading after the initial state is resolved.
   useEffect(() => {
-    async function hydrate() {
+    if (!auth) {
+      setIsLoading(false);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      // If a manual sign-in/sign-up is in progress, skip — it already handles everything.
+      if (skipAuthStateChangeRef.current) {
+        return;
+      }
+
       try {
-        // Cookie sent automatically with credentials: 'include'
-        const userData = await api.getMe();
-        setUser(userData);
-      } catch {
-        // No valid session — user needs to sign in
+        if (firebaseUser) {
+          try {
+             // Check if backend session is already valid
+             const userData = await api.getMe();
+             setUser(userData);
+          } catch {
+             // Cookie missing/expired, so we use the Firebase token to recreate it
+             const idToken = await firebaseUser.getIdToken(true);
+             const providerId = firebaseUser.providerData[0]?.providerId === 'password' ? 'email' : 'google';
+             
+             const result = await syncSessionWithBackend(idToken, providerId);
+             if (result.user) {
+               setUser(result.user);
+             } else {
+               setUser(null);
+             }
+          }
+        } else {
+          // No Firebase user — just clear local state.
+          // Don't call api.signOut() here: it requires auth (will 401) and is unnecessary
+          // since there's no session to clear if there's no Firebase user.
+          setUser(null);
+        }
+      } catch (error) {
         setUser(null);
       } finally {
         setIsLoading(false);
       }
-    }
+    });
 
-    hydrate();
-
-    if (auth) {
-      const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-        if (firebaseUser) {
-          // If Firebase restores session but backend cookie is missing/expired, re-sync.
-          try {
-             await api.getMe();
-          } catch {
-             // Cookie missing, so let's re-verify to generate it
-             const idToken = await firebaseUser.getIdToken();
-             const providerId = firebaseUser.providerData[0]?.providerId === 'password' ? 'email' : 'google';
-             
-             // Fixed: Use syncSessionWithBackend instead of direct fetch to handle API_BASE_URL and credentials
-             const result = await syncSessionWithBackend(idToken, providerId);
-             if (result.user) {
-               setUser(result.user);
-             }
-          }
-        }
-      });
-
-      return () => unsubscribe();
-    }
+    return () => unsubscribe();
   }, []);
 
   const signIn = useCallback(async (email: string, password: string, redirectTo: string = "/dashboard") => {
-    const { user: userData } = await signInWithEmail(email, password);
-    setUser(userData);
-    router.push(redirectTo);
+    // Prevent onAuthStateChanged from racing with this manual flow
+    skipAuthStateChangeRef.current = true;
+    try {
+      const { user: userData } = await signInWithEmail(email, password);
+      setUser(userData);
+      router.push(redirectTo);
+    } finally {
+      // Re-enable the listener after a short delay to let navigation settle
+      setTimeout(() => { skipAuthStateChangeRef.current = false; }, 2000);
+    }
   }, [router]);
 
   const signUp = useCallback(async (name: string, email: string, password: string, redirectTo: string = "/onboarding") => {
-    const { user: userData } = await signUpWithEmail(name, email, password);
-    setUser(userData);
-    router.push(redirectTo);
+    // Prevent onAuthStateChanged from racing with this manual flow
+    skipAuthStateChangeRef.current = true;
+    try {
+      const { user: userData } = await signUpWithEmail(name, email, password);
+      setUser(userData);
+      router.push(redirectTo);
+    } finally {
+      setTimeout(() => { skipAuthStateChangeRef.current = false; }, 2000);
+    }
   }, [router]);
 
   const signOut = useCallback(async () => {

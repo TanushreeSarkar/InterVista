@@ -60,14 +60,15 @@ app.use(
       // Allow requests with no origin (server-to-server, Postman, etc.)
       if (!origin) return callback(null, true);
 
-      if (corsOrigins.includes(origin)) {
+      // Check if origin is in our allowed list
+      if (corsOrigins.some(allowed => origin === allowed)) {
         callback(null, true);
-      } else if (isProduction) {
-        callback(new Error(`CORS: Origin ${origin} not allowed`));
-      } else {
+      } else if (!isProduction) {
         // Dev: allow any origin with warning
         logger.warn(`CORS: Allowing unlisted origin in dev: ${origin}`);
         callback(null, true);
+      } else {
+        callback(new Error(`CORS: Origin ${origin} not allowed`));
       }
     },
     credentials: true,

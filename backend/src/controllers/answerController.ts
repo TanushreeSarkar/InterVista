@@ -46,7 +46,7 @@ const fileFilter = (
   }
 };
 
-import { readFileSync, unlinkSync } from 'fs';
+import { unlinkSync } from 'fs';
 
 function validateAudioMagicBytes(filePath: string): boolean {
   try {
@@ -89,7 +89,7 @@ export async function submitAnswer(
 ): Promise<void> {
   try {
     const userId = req.user!.sub;
-    
+
     const validatedData = submitAnswerSchema.parse(req.body);
     const { sessionId, questionId, questionIndex, text } = validatedData;
 
@@ -140,7 +140,7 @@ export async function submitAnswer(
     const personaId = sessionDoc.data()!.personaId;
 
     // Fire and forget — don't await
-    emitAnswerFeedback(userId, sessionId, questionText, answerText, questionIndex, personaId).catch(() => {});
+    emitAnswerFeedback(userId, sessionId, questionText, answerText, questionIndex, personaId).catch(() => { });
 
     res.status(201).json({
       data: {
@@ -187,7 +187,7 @@ export async function getEvaluation(
       res.status(202).json({ status: 'evaluating', message: 'Evaluation in progress' });
       return;
     }
-    
+
     if (status === 'evaluation_failed') {
       res.status(500).json({ error: 'Evaluation failed, please retry' });
       return;
@@ -251,11 +251,11 @@ export async function retryEvaluation(
   try {
     const userId = req.user!.sub;
     const sessionId = req.params.sessionId as string;
-    
+
     const sessionDoc = await getDb().collection('sessions').doc(sessionId).get();
     if (!sessionDoc.exists) { res.status(404).json({ error: 'Session not found.' }); return; }
     if (sessionDoc.data()!.userId !== userId) { res.status(403).json({ error: 'Forbidden.' }); return; }
-    
+
     await getDb().collection('sessions').doc(sessionId).update({ status: 'pending', updatedAt: getFieldValue().serverTimestamp() });
     res.json({ data: { message: 'Evaluation retry triggered' } });
   } catch (error) { next(error); }

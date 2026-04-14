@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/auth-context";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { user, isLoading: authLoading, isAuthenticated, signOut } = useAuth();
   const [sessions, setSessions] = useState<InterviewSession[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsOverview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -374,8 +374,8 @@ export default function DashboardPage() {
               </button>
               <button
                 onClick={() => {
-                  /* Assume auto signout logic here, for demo just route to sign in */
-                  router.push("/sign-in");
+                  setIsSignOutModalOpen(false);
+                  signOut();
                 }}
                 className="flex-1 py-2 px-4 rounded-lg bg-red-600 hover:bg-red-700 dark:bg-[#EF4444] dark:hover:bg-[#DC2626] text-white transition-colors font-medium text-sm active:scale-95"
               >

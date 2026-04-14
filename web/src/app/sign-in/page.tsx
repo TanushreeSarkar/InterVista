@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -15,7 +15,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { signInWithGoogle, signInWithGitHub } from "@/lib/oauthHelpers";
 
 function SignInForm() {
-  const { signIn, setUser } = useAuth();
+  const { signIn, setUser, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -27,6 +27,12 @@ function SignInForm() {
   const [error, setError] = useState(sessionExpired ? "Your session has expired. Please sign in again." : "");
 
   const from = searchParams?.get("from") || "/dashboard";
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace(from);
+    }
+  }, [isLoading, isAuthenticated, router, from]);
 
   const handleOAuth = async (provider: "google" | "github") => {
     try {

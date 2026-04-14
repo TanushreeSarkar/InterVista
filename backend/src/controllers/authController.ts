@@ -25,12 +25,16 @@ function setAuthCookie(res: Response, token: string): void {
   const isProduction = process.env.NODE_ENV === 'production';
   const maxAgeMs = 7 * 24 * 60 * 60 * 1000; // 7 days
 
+  // If we're on localhost but NODE_ENV=production, we must still use sameSite: 'lax' and secure: false
+  // otherwise browsers will reject the cookie on non-HTTPS localhost.
+  const isLocalhost = res.req.headers.origin?.includes('localhost') ||
+    res.req.headers.host?.includes('localhost');
+
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: isProduction,
-    // Use 'none' in production to allow cross-domain cookies (Netlify -> Backend)
-    // Use 'lax' in development for localhost
-    sameSite: isProduction ? 'none' : 'lax',
+    secure: isProduction && !isLocalhost,
+    // Use 'none' only in true production cross-origin scenarios
+    sameSite: (isProduction && !isLocalhost) ? 'none' : 'lax',
     maxAge: maxAgeMs,
     path: '/',
   });
@@ -49,11 +53,11 @@ export async function signout(
   _next: NextFunction
 ): Promise<void> {
   const isProduction = process.env.NODE_ENV === 'production';
-  
+
   if (req.user && req.user.jti && req.user.exp) {
     await addToBlocklist(req.user.jti, new Date(req.user.exp * 1000));
   }
-  
+
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
     secure: isProduction,
@@ -199,9 +203,9 @@ export async function refresh(
       name: req.user.name,
       jti: uuidv4(),
     };
-    
+
     // Optional: blocklist the old token req.user.jti
-    
+
     const token = generateToken(tokenPayload);
     setAuthCookie(res, token);
 

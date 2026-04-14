@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
 import { signInWithGoogle, signInWithGitHub } from "@/lib/oauthHelpers";
 
 export default function SignUpPage() {
-  const { signUp, setUser } = useAuth();
+  const { signUp, setUser, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -24,6 +24,12 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<"google" | "github" | "">("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [isLoading, isAuthenticated, router]);
 
   const handleOAuth = async (provider: "google" | "github") => {
     try {

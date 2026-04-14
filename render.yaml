@@ -4,8 +4,6 @@ services:
     env: node
     region: oregon
     plan: free
-    # Removed rootDir: backend to use the root package.json delegation.
-    # This is more robust as it works with Render's default behaviors.
     buildCommand: npm run build
     startCommand: npm start
     envVars:

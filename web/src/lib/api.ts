@@ -35,12 +35,9 @@ export async function apiFetch<T>(
   }
 
   if (res.status === 401) {
-    if (typeof window !== 'undefined') {
-      const isAuthPage = ['/sign-in', '/sign-up', '/reset-password'].some(p => window.location.pathname.startsWith(p));
-      if (!isAuthPage) {
-        window.location.href = '/sign-in';
-      }
-    }
+    // Don't hard-redirect here — let auth context and component guards handle it.
+    // Hard redirects (window.location.href) override pending router.push() calls
+    // and cause race conditions during the sign-in flow.
     throw new Error('Session expired. Please sign in again.');
   }
 
@@ -309,6 +306,7 @@ export async function getTtsAudio(text: string, sessionId?: string): Promise<Blo
   const res = await fetch(`${API_BASE_URL}/api/tts/speak`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', // Send session cookie for auth
     body: JSON.stringify({ text, sessionId }),
   });
   if (!res.ok) throw new Error('Failed to fetch TTS audio');

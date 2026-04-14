@@ -99,21 +99,10 @@ export async function changePassword(
   req: AuthRequest, res: Response, next: NextFunction
 ): Promise<void> {
   try {
-    const userId = req.user!.sub;
-    const { currentPassword, newPassword } = req.body;
-
-    const doc = await getDb().collection('users').doc(userId).get();
-    if (!doc.exists) { res.status(404).json({ error: 'User not found.' }); return; }
-
-    const isValid = await bcrypt.compare(currentPassword, doc.data()!.passwordHash);
-    if (!isValid) {
-      res.status(401).json({ error: 'Current password is incorrect.' });
-      return;
-    }
-
-    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-    await getDb().collection('users').doc(userId).update({ passwordHash, updatedAt: getFieldValue().serverTimestamp() });
-    res.json({ data: { message: 'Password changed successfully.' } });
+    // With Firebase Auth, passwords are not stored in Firestore.
+    // Changing the password requires re-authenticating the user with their current credentials,
+    // which should be handled client-side via Firebase SDK (or by triggering a password reset).
+    res.status(501).json({ error: 'Please use the "Reset Password" flow on the login page to change your password.' });
   } catch (error) { next(error); }
 }
 
