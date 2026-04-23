@@ -43,3 +43,7 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 CMD ["node", "server.js"]
+
+# Copyright (c) 2026 Tanushree Sarkar
+# All rights reserved.
+# Unauthorized copying, modification, distribution is prohibited.

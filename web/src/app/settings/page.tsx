@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { EnhancedNavbar } from "@/components/layout/enhanced-navbar";
+import { Sidebar } from "@/components/layout/sidebar";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -116,12 +116,14 @@ export default function SettingsPage() {
     }
   };
 
+  const [showSidebarMobile, setShowSidebarMobile] = useState(false);
+
   return (
-    <main className="min-h-screen bg-background">
-      <EnhancedNavbar />
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0A0A0F] text-gray-900 dark:text-[#F4F4F5] font-['Inter',sans-serif]">
+      <Sidebar mobileOpen={showSidebarMobile} setMobileOpen={setShowSidebarMobile} />
       
-      <div className="pt-24 pb-16">
-        <div className="container mx-auto px-4">
+      <div className="md:pl-64 min-h-screen">
+        <div className="max-w-4xl mx-auto px-6 py-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -335,6 +337,6 @@ export default function SettingsPage() {
           </motion.div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

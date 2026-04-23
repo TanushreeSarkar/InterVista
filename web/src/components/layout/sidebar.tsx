@@ -28,7 +28,7 @@ const navItems = [
     },
     {
         title: "My Interviews",
-        href: "/dashboard/mock-interviews",
+        href: "/dashboard/history",
         icon: Video,
     },
     {
