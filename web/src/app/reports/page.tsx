@@ -2,156 +2,170 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Calendar, Target } from "lucide-react";
+import { Sidebar } from "@/components/layout/sidebar";
+import { Loader2, TrendingUp, Calendar, Target, FileText, ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { getSessions, type InterviewSession } from "@/lib/api";
-import { Navbar } from "@/components/layout/navbar";
+import { getSessions, getAnalyticsOverview, type InterviewSession, type AnalyticsOverview } from "@/lib/api";
+import { useAuth } from "@/contexts/auth-context";
+import { useRouter } from "next/navigation";
 
 export default function ReportsPage() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const router = useRouter();
   const [sessions, setSessions] = useState<InterviewSession[]>([]);
+  const [analytics, setAnalytics] = useState<AnalyticsOverview | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showSidebarMobile, setShowSidebarMobile] = useState(false);
 
   useEffect(() => {
-    loadSessions();
-  }, []);
+    if (!authLoading && !isAuthenticated) {
+      router.push("/sign-in");
+      return;
+    }
+    if (isAuthenticated) {
+      loadData();
+    }
+  }, [authLoading, isAuthenticated, router]);
 
-  async function loadSessions() {
+  async function loadData() {
     try {
       setLoading(true);
-      const data = await getSessions();
-      setSessions(data);
+      const [sessionsData, analyticsData] = await Promise.all([
+        getSessions(),
+        getAnalyticsOverview().catch(() => null),
+      ]);
+      setSessions(sessionsData);
+      setAnalytics(analyticsData);
     } catch (error) {
-      console.error("Failed to load sessions:", error);
+      console.error("Failed to load reports data:", error);
       setSessions([]);
     } finally {
       setLoading(false);
     }
   }
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#0A0A0F]">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
+
   const completedSessions = sessions.filter((s) => s.status === "completed");
+  const inProgressSessions = sessions.filter(s => s.status === "in_progress");
 
   return (
-    <>
-      <Navbar />
-      <div className="min-h-screen pt-16 bg-background">
-        <div className="container mx-auto px-4 py-12">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0A0A0F] text-gray-900 dark:text-[#F4F4F5] font-['Inter',sans-serif]">
+      <Sidebar mobileOpen={showSidebarMobile} setMobileOpen={setShowSidebarMobile} />
+
+      <div className="md:pl-64 min-h-screen">
+        <div className="max-w-6xl mx-auto px-6 py-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
             <div className="mb-8">
-              <h1 className="text-4xl font-bold mb-2">Performance Reports</h1>
-              <p className="text-muted-foreground">
+              <h1 className="font-['DM_Sans',sans-serif] text-3xl font-bold tracking-tight flex items-center gap-3">
+                <FileText className="w-8 h-8 text-indigo-500" /> Performance Reports
+              </h1>
+              <p className="text-gray-500 dark:text-[#71717A] mt-1">
                 Track your progress and identify areas for improvement
               </p>
             </div>
 
             {/* Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
+                transition={{ delay: 0.1 }}
+                className="bg-white dark:bg-[#111118] border border-gray-200 dark:border-[#1E1E2E] rounded-xl p-5"
               >
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardDescription>Total Interviews</CardDescription>
-                    <CardTitle className="text-3xl flex items-center">
-                      {sessions.length}
-                      <Calendar className="w-5 h-5 ml-2 text-muted-foreground" />
-                    </CardTitle>
-                  </CardHeader>
-                </Card>
+                <div className="flex items-center gap-2 mb-3 text-gray-500 dark:text-[#71717A]">
+                  <Calendar className="w-4 h-4" />
+                  <span className="text-sm">Total Interviews</span>
+                </div>
+                <div className="text-3xl font-bold font-['DM_Sans',sans-serif]">{sessions.length}</div>
               </motion.div>
 
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
+                transition={{ delay: 0.2 }}
+                className="bg-white dark:bg-[#111118] border border-gray-200 dark:border-[#1E1E2E] rounded-xl p-5"
               >
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardDescription>Completed</CardDescription>
-                    <CardTitle className="text-3xl flex items-center">
-                      {completedSessions.length}
-                      <Target className="w-5 h-5 ml-2 text-muted-foreground" />
-                    </CardTitle>
-                  </CardHeader>
-                </Card>
+                <div className="flex items-center gap-2 mb-3 text-gray-500 dark:text-[#71717A]">
+                  <Target className="w-4 h-4" />
+                  <span className="text-sm">Completed</span>
+                </div>
+                <div className="text-3xl font-bold font-['DM_Sans',sans-serif] text-green-500">
+                  {completedSessions.length}
+                </div>
               </motion.div>
 
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
+                transition={{ delay: 0.3 }}
+                className="bg-white dark:bg-[#111118] border border-gray-200 dark:border-[#1E1E2E] rounded-xl p-5"
               >
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardDescription>In Progress</CardDescription>
-                    <CardTitle className="text-3xl flex items-center">
-                      {sessions.filter(s => s.status === 'in_progress').length}
-                      <TrendingUp className="w-5 h-5 ml-2 text-muted-foreground" />
-                    </CardTitle>
-                  </CardHeader>
-                </Card>
+                <div className="flex items-center gap-2 mb-3 text-gray-500 dark:text-[#71717A]">
+                  <TrendingUp className="w-4 h-4" />
+                  <span className="text-sm">Avg. Score</span>
+                </div>
+                <div className="text-3xl font-bold font-['DM_Sans',sans-serif] text-indigo-500">
+                  {analytics && analytics.averageScore > 0 ? `${analytics.averageScore}%` : "N/A"}
+                </div>
               </motion.div>
             </div>
 
             {/* Session History */}
-            <div className="space-y-4">
-              <h2 className="text-2xl font-semibold">Session History</h2>
+            <div>
+              <h2 className="text-xl font-bold font-['DM_Sans',sans-serif] mb-4">Session History</h2>
               {loading ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <Card key={i}>
-                      <CardHeader>
-                        <Skeleton className="h-6 w-48 mb-2" />
-                        <Skeleton className="h-4 w-32" />
-                      </CardHeader>
-                    </Card>
-                  ))}
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
                 </div>
               ) : sessions.length === 0 ? (
-                <Card>
-                  <CardContent className="p-8 text-center text-muted-foreground">
-                    No interviews yet. Start a practice session from the dashboard!
-                  </CardContent>
-                </Card>
+                <div className="bg-white dark:bg-[#111118] border border-gray-200 dark:border-[#1E1E2E] rounded-xl p-10 text-center text-gray-500 dark:text-[#71717A]">
+                  No interviews yet. Start a practice session from the dashboard!
+                </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {sessions.map((session, index) => (
                     <motion.div
                       key={session.id}
-                      initial={{ opacity: 0, x: -20 }}
+                      initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.1 }}
+                      transition={{ delay: index * 0.05 }}
                     >
-                      <Link href={session.status === 'completed' ? `/evaluation/${session.id}` : `/interview/${session.id}`}>
-                        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                          <CardHeader>
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <CardTitle className="text-xl mb-2">
-                                  {session.role} at {session.company}
-                                </CardTitle>
-                                <CardDescription>
-                                  {session.difficulty} • {new Date(session.createdAt).toLocaleDateString("en-US", {
-                                    year: "numeric",
-                                    month: "long",
-                                    day: "numeric",
-                                  })}
-                                </CardDescription>
-                              </div>
-                              <Badge variant={session.status === 'completed' ? 'default' : 'secondary'}>
-                                {session.status}
-                              </Badge>
-                            </div>
-                          </CardHeader>
-                        </Card>
+                      <Link href={session.status === "completed" ? `/evaluation/${session.id}` : `/interview/${session.id}`}>
+                        <div className="bg-white dark:bg-[#111118] border border-gray-200 dark:border-[#1E1E2E] rounded-xl p-5 hover:border-indigo-500/50 hover:shadow-md transition-all flex items-center justify-between group">
+                          <div>
+                            <h3 className="font-semibold text-lg mb-1 group-hover:text-indigo-500 transition-colors">
+                              {session.role} at {session.company}
+                            </h3>
+                            <p className="text-sm text-gray-500 dark:text-[#71717A]">
+                              {session.difficulty} • {new Date(session.createdAt).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Badge
+                              variant={session.status === "completed" ? "default" : "secondary"}
+                              className={session.status === "completed" ? "bg-green-500/10 text-green-500 border-green-500/20" : ""}
+                            >
+                              {session.status === "completed" ? "Completed" : session.status === "in_progress" ? "In Progress" : "Pending"}
+                            </Badge>
+                            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-indigo-500 transition-colors" />
+                          </div>
+                        </div>
                       </Link>
                     </motion.div>
                   ))}
@@ -161,6 +175,6 @@ export default function ReportsPage() {
           </motion.div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

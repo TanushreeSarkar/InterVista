@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, AlertTriangle, XCircle, Star, Download, RefreshCcw, ArrowLeft, ChevronDown, MessageSquare, TrendingUp, TrendingDown, Target, Lightbulb, Users, TerminalSquare, Search, Award } from "lucide-react";
 import { getEvaluation, type EvaluationResult, type QuestionFeedback } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
+import { getPersistedInterviewData } from "@/contexts/InterviewContext";
 import jsPDF from "jspdf";
 
 const LOADING_TIPS = [
@@ -39,9 +40,16 @@ export default function EvaluationPage() {
   // Score counter state
   const [displayScore, setDisplayScore] = useState(0);
 
-  // Poll Evaluation
+  // Refs to avoid stale closures
+  const loadingRef = useRef(true);
+  const pollerRef = useRef<NodeJS.Timeout | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
+  const [interviewData] = useState(() => getPersistedInterviewData());
+
+  // Poll Evaluation — uses ref to avoid stale closure bug that caused 95% stuck
   useEffect(() => {
     if (!isAuthenticated || !id) return;
+    loadingRef.current = true;
 
     const fetchEval = async () => {
       try {
@@ -50,27 +58,45 @@ export default function EvaluationPage() {
           // keep polling
         } else {
           setEvaluation(data as EvaluationResult);
-          setLoading(false);
+          loadingRef.current = false;
+          // Animate progress to 100%, then reveal results
+          setFakeProgress(100);
+          setTimeout(() => { setLoading(false); }, 600);
+          if (pollerRef.current) clearInterval(pollerRef.current);
         }
       } catch (err: any) {
-        // Stop polling on actual failure or let it retry for a bit then fail
         console.error("Evaluation poll error:", err);
         if (err.message && err.message.toLowerCase().includes("failed")) {
           setError(err.message);
+          loadingRef.current = false;
           setLoading(false);
+          if (pollerRef.current) clearInterval(pollerRef.current);
         }
       }
     };
 
-    fetchEval(); // initial
+    fetchEval();
 
-    const poller = setInterval(() => {
-      if (loading) fetchEval();
-      else clearInterval(poller);
+    pollerRef.current = setInterval(() => {
+      if (loadingRef.current) fetchEval();
+      else if (pollerRef.current) clearInterval(pollerRef.current);
     }, 3000);
 
-    return () => clearInterval(poller);
-  }, [isAuthenticated, id, loading]);
+    // 60s max timeout — show retry instead of spinning forever
+    const timeout = setTimeout(() => {
+      if (loadingRef.current) {
+        setTimedOut(true);
+        loadingRef.current = false;
+        setLoading(false);
+        if (pollerRef.current) clearInterval(pollerRef.current);
+      }
+    }, 60000);
+
+    return () => {
+      if (pollerRef.current) clearInterval(pollerRef.current);
+      clearTimeout(timeout);
+    };
+  }, [isAuthenticated, id]);
 
   // Loading Fake Progress & Tips
   useEffect(() => {
@@ -226,9 +252,25 @@ export default function EvaluationPage() {
         <div className="w-64 h-1.5 bg-zinc-800 rounded-full mt-8 overflow-hidden">
           <motion.div
             className="h-full bg-gradient-to-r from-indigo-500 to-cyan-400"
-            animate={{ width: `\${fakeProgress}%` }}
-            transition={{ duration: 0.1 }}
+            animate={{ width: `${fakeProgress}%` }}
+            transition={{ duration: 0.3 }}
           />
+        </div>
+      </div>
+    );
+  }
+
+  if (timedOut) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0A0A0F] text-white">
+        <div className="text-center">
+          <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+          <p className="mb-2 text-lg font-semibold">Evaluation is taking longer than expected</p>
+          <p className="mb-6 text-zinc-400">The AI is still processing your responses. You can retry or come back later.</p>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={() => window.location.reload()} className="bg-indigo-600 hover:bg-indigo-700">Retry</Button>
+            <Button variant="outline" onClick={() => router.push("/dashboard")} className="border-zinc-700">Back to Dashboard</Button>
+          </div>
         </div>
       </div>
     );
@@ -315,19 +357,19 @@ export default function EvaluationPage() {
                   cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round"
                   className={scoreColors.text}
                   initial={{ strokeDasharray: "0 340" }}
-                  animate={{ strokeDasharray: `\${(evaluation.overallScore / 100) * 339.29} 340` }}
+                  animate={{ strokeDasharray: `${(evaluation.overallScore / 100) * 339.29} 340` }}
                   transition={{ duration: 1.5, ease: "easeOut" }}
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className={`text-6xl font-black font-['DM_Sans',sans-serif] \${scoreColors.text}`}>{displayScore}</span>
+                <span className={`text-6xl font-black font-['DM_Sans',sans-serif] ${scoreColors.text}`}>{displayScore}</span>
                 <span className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mt-1">Overall</span>
               </div>
             </div>
 
             {/* Summary text */}
             <div className="text-center md:text-left flex-1 pt-2">
-              <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border \${recDetails.color} mb-6`}>
+              <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${recDetails.color} mb-6`}>
                 {recDetails.icon}
                 <span className="font-bold tracking-wide">{evaluation.recommendation}</span>
               </div>
@@ -362,7 +404,7 @@ export default function EvaluationPage() {
                       <div className="bg-[#1A1A24] p-2 rounded-lg text-indigo-400">{skill.icon}</div>
                       <h3 className="font-semibold text-zinc-200">{skill.name}</h3>
                     </div>
-                    <span className={`font-bold \${sColor.text}`}>{data.score}</span>
+                    <span className={`font-bold ${sColor.text}`}>{data.score}</span>
                   </div>
 
                   <div className="h-1.5 w-full bg-[#1A1A24] rounded-full overflow-hidden mb-4">
@@ -386,7 +428,7 @@ export default function EvaluationPage() {
             <button
               key={i}
               onClick={() => setActiveTab(i)}
-              className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all \${activeTab === i ? 'bg-indigo-600 text-white' : 'text-zinc-400 hover:bg-[#1E1E2E] hover:text-zinc-200'}`}
+              className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${activeTab === i ? 'bg-indigo-600 text-white' : 'text-zinc-400 hover:bg-[#1E1E2E] hover:text-zinc-200'}`}
             >
               {tab}
             </button>
@@ -421,10 +463,10 @@ export default function EvaluationPage() {
                       <h4 className="flex-1 text-[15px] font-medium text-zinc-200 line-clamp-2">{q.question}</h4>
 
                       <div className="flex items-center gap-4 shrink-0 sm:ml-auto">
-                        <div className={`font-mono font-bold \${getColorScheme(q.score * 10).text}`}>
+                        <div className={`font-mono font-bold ${getColorScheme(q.score * 10).text}`}>
                           {q.score}/10
                         </div>
-                        <ChevronDown className={`w-5 h-5 text-zinc-500 transition-transform \${isExp ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`w-5 h-5 text-zinc-500 transition-transform ${isExp ? 'rotate-180' : ''}`} />
                       </div>
                     </button>
 

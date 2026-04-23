@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 
 import { AuthProvider } from "@/contexts/auth-context";
 import { SpeechProvider } from "@/contexts/SpeechContext";
+import { InterviewProvider } from "@/contexts/InterviewContext";
 
 export function ClientProviders({
   children,
@@ -19,7 +20,9 @@ export function ClientProviders({
     >
       <AuthProvider>
         <SpeechProvider>
-          {children}
+          <InterviewProvider>
+            {children}
+          </InterviewProvider>
         </SpeechProvider>
       </AuthProvider>
     </ThemeProvider>

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Mic, MicOff, AlertCircle, PlaySquare, SkipForward, Send, PhoneOff, Video, VideoOff, Wifi, WifiOff, CheckCircle2, Camera, Volume2 } from "lucide-react";
 import { getSessionQuestions, getSession as getSessionData, submitAnswer, getTtsAudio, type Question } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
+import { useInterview } from "@/contexts/InterviewContext";
 
 // ─── Filler Word Detection ──────────────────────────────────────
 const FILLER_WORDS = [
@@ -63,7 +64,11 @@ export default function InterviewPage() {
   const params = useParams();
   const router = useRouter();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { addQuestionResult, updateSessionData } = useInterview();
   const sessionId = params.id as string;
+  const mountedRef = useRef(true);
+  const isListeningRef = useRef(false);
+  const listeningStartTimeRef = useRef<number>(0);
 
   // ─── Phase ────────────────────────────────────────────────────
   const [phase, setPhase] = useState<InterviewPhase>("lobby");
@@ -106,6 +111,7 @@ export default function InterviewPage() {
   // ─── Refs ─────────────────────────────────────────────────────
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const interviewVideoRef = useRef<HTMLVideoElement | null>(null);
   const recognitionRef = useRef<any>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -113,9 +119,8 @@ export default function InterviewPage() {
   const transcriptRef = useRef(transcript);
   const fallbackTextRef = useRef(fallbackText);
 
-  // ─── Typewriter ───────────────────────────────────────────────
+  // ─── Question display (always full text, no typewriter) ──────
   const [displayedQuestion, setDisplayedQuestion] = useState("");
-  const typeWriterIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Keep refs in sync
   useEffect(() => { transcriptRef.current = transcript; }, [transcript]);
@@ -211,6 +216,17 @@ export default function InterviewPage() {
         personaId: sessionInfo.personaId,
       });
       setQuestions(questionsData);
+      // Persist session info in InterviewContext
+      try {
+        updateSessionData({
+          sessionId,
+          role: sessionInfo.role || "Candidate",
+          company: sessionInfo.company || "Company",
+          difficulty: sessionInfo.difficulty || "Medium",
+          personaId: sessionInfo.personaId,
+          totalQuestions: questionsData.length,
+        });
+      } catch {}
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load session");
     } finally {
@@ -223,57 +239,83 @@ export default function InterviewPage() {
   // ═══════════════════════════════════════════════════════════════
   useEffect(() => {
     if (phase !== "interview" || loading || questions.length === 0 || currentQuestionIndex >= questions.length) return;
+    // Re-attach video stream to interview video element
+    if (streamRef.current && interviewVideoRef.current) {
+      interviewVideoRef.current.srcObject = streamRef.current;
+    }
+    // Update context phase
+    try { updateSessionData({ phase: "interview", currentQuestionIndex }); } catch {}
     startQuestion(questions[currentQuestionIndex].text);
     return () => { stopCurrentAction(); };
   }, [phase, currentQuestionIndex, loading, questions]);
 
   function stopCurrentAction() {
+    isListeningRef.current = false;
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; }
-    if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch {} }
+    if (typeof window !== 'undefined') { window.speechSynthesis.cancel(); }
+    if (recognitionRef.current) { try { recognitionRef.current.abort(); } catch {} recognitionRef.current = null; }
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
-    if (typeWriterIntervalRef.current) clearInterval(typeWriterIntervalRef.current);
   }
 
   async function startQuestion(text: string) {
     stopCurrentAction();
+    if (!mountedRef.current) return;
     setTranscript("");
     setFallbackText("");
     setTimeLeft(120);
-    setDisplayedQuestion("");
+    // Always show full question text immediately — no typewriter
+    setDisplayedQuestion(text);
     setFillerCount(0);
     setFillerBreakdown({});
     setStatus("Processing...");
 
-    // Typewriter effect
-    let cursor = 0;
-    typeWriterIntervalRef.current = setInterval(() => {
-      if (cursor <= text.length) {
-        setDisplayedQuestion(text.substring(0, cursor));
-        cursor++;
-      } else {
-        if (typeWriterIntervalRef.current) clearInterval(typeWriterIntervalRef.current);
-      }
-    }, 40);
-
-    // TTS
+    // TTS: try API first, fallback to browser speechSynthesis
     try {
       const blob = await getTtsAudio(text, sessionId);
+      if (!mountedRef.current || !audioRef.current) return;
       const url = URL.createObjectURL(blob);
-      if (!audioRef.current) return;
       audioRef.current.src = url;
       await audioRef.current.play();
+      if (!mountedRef.current) return;
       setStatus("Speaking...");
       setIsSpeaking(true);
       audioRef.current.onended = () => {
+        if (!mountedRef.current) return;
         setIsSpeaking(false);
         startListening();
       };
     } catch {
-      setIsSpeaking(false);
-      if (typeWriterIntervalRef.current) clearInterval(typeWriterIntervalRef.current);
-      setDisplayedQuestion(text);
-      startListening();
+      // Fallback: use browser speechSynthesis
+      if (!mountedRef.current) return;
+      setIsSpeaking(true);
+      setStatus("Speaking...");
+      try {
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.rate = 1;
+          utterance.pitch = 1;
+          utterance.onend = () => {
+            if (!mountedRef.current) return;
+            setIsSpeaking(false);
+            startListening();
+          };
+          utterance.onerror = () => {
+            if (!mountedRef.current) return;
+            setIsSpeaking(false);
+            startListening();
+          };
+          window.speechSynthesis.speak(utterance);
+        } else {
+          // No speechSynthesis either — just move to listening
+          setIsSpeaking(false);
+          startListening();
+        }
+      } catch {
+        if (!mountedRef.current) return;
+        setIsSpeaking(false);
+        startListening();
+      }
     }
   }
 
@@ -282,11 +324,14 @@ export default function InterviewPage() {
     if (!SpeechRecognition) {
       setHasSpeechRecognition(false);
       setStatus("Listening...");
+      listeningStartTimeRef.current = Date.now();
       startCountdown();
       return;
     }
 
     setStatus("Listening...");
+    isListeningRef.current = true;
+    listeningStartTimeRef.current = Date.now();
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
@@ -296,6 +341,7 @@ export default function InterviewPage() {
     let finalTranscript = "";
 
     recognition.onresult = (event: any) => {
+      if (!mountedRef.current) return;
       let interimTranscript = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const tr = event.results[i][0].transcript;
@@ -307,10 +353,42 @@ export default function InterviewPage() {
       resetSilenceTimer(fullText);
     };
 
-    recognition.onerror = () => {};
+    recognition.onerror = (event: any) => {
+      // Auto-restart on recoverable errors
+      if (isListeningRef.current && mountedRef.current && (event.error === 'network' || event.error === 'no-speech' || event.error === 'aborted')) {
+        setTimeout(() => {
+          if (isListeningRef.current && mountedRef.current) {
+            try {
+              const newRecog = new SpeechRecognition();
+              newRecog.continuous = true;
+              newRecog.interimResults = true;
+              newRecog.lang = "en-US";
+              newRecog.onresult = recognition.onresult;
+              newRecog.onerror = recognition.onerror;
+              newRecog.onend = recognition.onend;
+              recognitionRef.current = newRecog;
+              newRecog.start();
+            } catch {}
+          }
+        }, 500);
+      }
+    };
+
     recognition.onend = () => {
-      // Auto-restart if still in listening phase
-      try { if (recognitionRef.current === recognition) recognition.start(); } catch {}
+      // Auto-restart if we're still supposed to be listening
+      if (isListeningRef.current && mountedRef.current) {
+        try {
+          const newRecog = new SpeechRecognition();
+          newRecog.continuous = true;
+          newRecog.interimResults = true;
+          newRecog.lang = "en-US";
+          newRecog.onresult = recognition.onresult;
+          newRecog.onerror = recognition.onerror;
+          newRecog.onend = recognition.onend;
+          recognitionRef.current = newRecog;
+          newRecog.start();
+        } catch {}
+      }
     };
 
     try { recognition.start(); } catch {}
@@ -342,14 +420,29 @@ export default function InterviewPage() {
   async function handleAdvanceQuestion(finalTextToSubmit?: string) {
     if (isSubmitting) return;
     stopCurrentAction();
+    if (!mountedRef.current) return;
     setIsSubmitting(true);
 
     const question = questions[currentQuestionIndex];
     const textToSubmit = finalTextToSubmit !== undefined ? finalTextToSubmit : (hasSpeechRecognition ? transcriptRef.current : fallbackTextRef.current);
 
-    // Accumulate filler count for the session
-    const { total } = countFillers(textToSubmit);
+    // Compute filler count and response time for this question
+    const { total, breakdown } = countFillers(textToSubmit);
+    const responseTimeMs = listeningStartTimeRef.current > 0 ? Date.now() - listeningStartTimeRef.current : 0;
     setSessionFillerTotal(prev => prev + total);
+
+    // Store per-question data in context
+    try {
+      addQuestionResult({
+        questionIndex: currentQuestionIndex,
+        questionText: question.text,
+        answerText: textToSubmit.trim(),
+        fillerCount: total,
+        fillerBreakdown: breakdown,
+        responseTimeMs,
+        submittedAt: new Date().toISOString(),
+      });
+    } catch {}
 
     try {
       await submitAnswer({
@@ -359,8 +452,10 @@ export default function InterviewPage() {
         text: textToSubmit.trim(),
       });
 
+      if (!mountedRef.current) return;
       setShowSavedMsg(true);
       setTimeout(() => {
+        if (!mountedRef.current) return;
         setShowSavedMsg(false);
         if (currentQuestionIndex < questions.length - 1) {
           setCurrentQuestionIndex(prev => prev + 1);
@@ -371,6 +466,7 @@ export default function InterviewPage() {
       }, 1000);
     } catch (err) {
       console.error(err);
+      if (!mountedRef.current) return;
       setIsSubmitting(false);
     }
   }
@@ -405,7 +501,9 @@ export default function InterviewPage() {
 
   // ─── Cleanup on unmount ───────────────────────────────────────
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       stopCurrentAction();
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(t => t.stop());
@@ -607,8 +705,8 @@ export default function InterviewPage() {
         </div>
 
         <div className="flex items-center gap-4">
-          {/* Filler Word Counter */}
-          {status === "Listening..." && fillerCount > 0 && (
+          {/* Filler Word Counter - always visible when > 0 */}
+          {fillerCount > 0 && (
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -714,12 +812,12 @@ export default function InterviewPage() {
         <div className="flex-[3] bg-[#09090b] border-l border-zinc-800/50 p-6 flex flex-col relative">
           <div className="flex-1 rounded-2xl bg-zinc-900 overflow-hidden relative border border-zinc-800 shadow-inner">
             <video
-              ref={phase === "interview" ? undefined : videoRef}
+              ref={interviewVideoRef}
               autoPlay playsInline muted
-              className={`w-full h-full object-cover transform -scale-x-100 ${isCameraOff ? 'hidden' : ''}`}
+              className={`w-full h-full object-cover transform -scale-x-100`}
             />
             {isCameraOff && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 gap-2">
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900/90 gap-2 z-10">
                 <div className="w-20 h-20 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-600 border border-zinc-700">
                   <VideoOff className="w-8 h-8" />
                 </div>

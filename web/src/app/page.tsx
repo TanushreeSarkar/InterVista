@@ -23,3 +23,6 @@ export default function Home() {
     </main>
   );
 }
+// Copyright (c) 2026 Tanushree Sarkar
+// All rights reserved.
+// Unauthorized copying, modification, distribution is prohibited.
