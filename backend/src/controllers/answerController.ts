@@ -1,4 +1,5 @@
 import { Response, NextFunction } from 'express';
+import os from 'os';
 import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
@@ -10,6 +11,7 @@ import { transcribeAudio } from '../lib/transcribe';
 import { emitAnswerFeedback, emitEvaluationReady } from '../lib/socketHandler';
 import { sendSessionCompleteEmail } from '../lib/email';
 import { sanitizeFields } from '../lib/sanitize';
+import { uploadAudioToStorage } from '../lib/storage';
 import logger from '../lib/logger';
 
 // ─── Allowed audio MIME types ──────────────────────────────
@@ -21,18 +23,8 @@ const ALLOWED_AUDIO_TYPES = [
   'audio/ogg',
 ];
 
-// ─── Multer setup ──────────────────────────────────────────
-const storage = multer.diskStorage({
-  destination: (req, _file, cb) => {
-    const sessionId = req.body.sessionId || 'unknown';
-    const uploadDir = path.join(__dirname, '..', '..', 'uploads', sessionId);
-    fs.mkdirSync(uploadDir, { recursive: true });
-    cb(null, uploadDir);
-  },
-  filename: (_req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
-});
+// ─── Multer setup (memory storage for cloud upload) ────────
+const memoryStorage = multer.memoryStorage();
 
 const fileFilter = (
   _req: any,
@@ -46,29 +38,23 @@ const fileFilter = (
   }
 };
 
-import { unlinkSync } from 'fs';
-
-function validateAudioMagicBytes(filePath: string): boolean {
+function validateAudioMagicBytes(buffer: Buffer): boolean {
   try {
-    const buffer = Buffer.alloc(12);
-    const fd = fs.openSync(filePath, 'r');
-    fs.readSync(fd, buffer, 0, 12, 0);
-    fs.closeSync(fd);
-
-    const hex = buffer.toString('hex').toUpperCase();
+    if (buffer.length < 12) return false;
+    const hex = buffer.subarray(0, 12).toString('hex').toUpperCase();
 
     const allowedSignatures = [
       '1A45DFA3', // WebM or MKV
-      '000000', // Start of MP4 (often 00 00 00 18 or 00 00 00 20) with ftyp
-      '494433', // MP3 with ID3
-      'FFFB', // MP3 without ID3
-      'FFF3', // MP3 without ID3
-      'FFF2', // MP3 without ID3
+      '000000',   // Start of MP4 (often 00 00 00 18 or 00 00 00 20) with ftyp
+      '494433',   // MP3 with ID3
+      'FFFB',     // MP3 without ID3
+      'FFF3',     // MP3 without ID3
+      'FFF2',     // MP3 without ID3
       '52494646', // WAV (RIFF)
       '4F676753', // OGG
     ];
 
-    return allowedSignatures.some(sig => hex.startsWith(sig)) || buffer.toString('ascii').includes('ftyp');
+    return allowedSignatures.some(sig => hex.startsWith(sig)) || buffer.toString('ascii', 0, 12).includes('ftyp');
   } catch (err) {
     logger.error('Magic byte validation error', err);
     return false;
@@ -76,10 +62,103 @@ function validateAudioMagicBytes(filePath: string): boolean {
 }
 
 export const upload = multer({
-  storage,
+  storage: memoryStorage,
   limits: { fileSize: 25 * 1024 * 1024 }, // 25MB
   fileFilter,
 });
+
+// ─── Streak / Score / Badge helpers ────────────────────────
+
+const STREAK_BADGE_MILESTONES: Record<number, string> = {
+  3: '3-Day Streak 🔥',
+  7: '7-Day Streak 🔥🔥',
+  14: '14-Day Streak 🔥🔥🔥',
+  30: '30-Day Streak 🏆',
+};
+
+/**
+ * Calculate the current streak (consecutive days with completed interviews)
+ * and determine badges earned.
+ */
+function calculateStreak(completedDates: Date[]): { streak: number; badges: string[] } {
+  if (completedDates.length === 0) return { streak: 0, badges: [] };
+
+  // Normalize to YYYY-MM-DD and deduplicate
+  const dateSet = new Set<string>();
+  for (const d of completedDates) {
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    dateSet.add(key);
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let streak = 0;
+  for (let i = 0; i < 365; i++) {
+    const checkDate = new Date(today);
+    checkDate.setDate(checkDate.getDate() - i);
+    const key = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+    if (dateSet.has(key)) {
+      streak++;
+    } else if (i > 0) {
+      // Allow today to be missing (user hasn't done today's interview yet)
+      break;
+    }
+  }
+
+  // Determine badges
+  const badges: string[] = [];
+  for (const [milestone, badge] of Object.entries(STREAK_BADGE_MILESTONES)) {
+    if (streak >= parseInt(milestone)) {
+      badges.push(badge);
+    }
+  }
+
+  return { streak, badges };
+}
+
+/**
+ * Recalculate and persist user stats after an evaluation completes.
+ */
+async function updateUserStats(userId: string): Promise<void> {
+  try {
+    const db = getDb();
+
+    // Get all evaluations for this user
+    const evalsSnap = await db.collection('evaluations').where('userId', '==', userId).get();
+    const scores = evalsSnap.docs.map(d => d.data().overallScore as number).filter(s => typeof s === 'number');
+    const averageScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+
+    // Get all completed sessions for streak calculation
+    const sessionsSnap = await db.collection('sessions')
+      .where('userId', '==', userId)
+      .where('status', '==', 'completed')
+      .get();
+
+    const completedDates = sessionsSnap.docs
+      .map(d => d.data().createdAt?.toDate?.())
+      .filter((d): d is Date => d instanceof Date);
+
+    const { streak, badges } = calculateStreak(completedDates);
+
+    // Persist to user record
+    await db.collection('users').doc(userId).update({
+      averageScore,
+      streak,
+      badges,
+      totalInterviews: evalsSnap.size,
+      lastInterviewDate: getFieldValue().serverTimestamp(),
+      updatedAt: getFieldValue().serverTimestamp(),
+    });
+
+    logger.info(`Updated user stats for ${userId}: avgScore=${averageScore}, streak=${streak}, badges=${badges.length}`);
+  } catch (err) {
+    logger.error('Failed to update user stats', err);
+  }
+}
+
+// ─── Staleness threshold for stuck evaluations ─────────────
+const EVALUATION_STALENESS_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * POST /api/answers  (protected, multipart)
@@ -109,22 +188,37 @@ export async function submitAnswer(
       createdAt: getFieldValue().serverTimestamp(), updatedAt: getFieldValue().serverTimestamp(),
     };
 
-    // If audio uploaded, save path and auto-transcribe if no text provided
+    // If audio uploaded, upload to cloud storage and auto-transcribe if no text provided
     if (req.file) {
-      if (!validateAudioMagicBytes(req.file.path)) {
-        unlinkSync(req.file.path);
+      if (!validateAudioMagicBytes(req.file.buffer)) {
         res.status(415).json({ error: 'Invalid file content: Magic byte mismatch.' });
         return;
       }
 
-      answerData.audioPath = req.file.path;
-      answerData.audioFilename = req.file.filename;
+      const cloudFilename = `${sessionId}/${Date.now()}-${req.file.originalname}`;
+
+      try {
+        const audioUrl = await uploadAudioToStorage(req.file.buffer, cloudFilename, req.file.mimetype);
+        answerData.audioUrl = audioUrl;
+        answerData.audioFilename = cloudFilename;
+      } catch (uploadErr) {
+        logger.error('Cloud upload failed', uploadErr);
+        // Non-fatal: continue without audio URL
+      }
 
       if (!answerText && process.env.OPENAI_API_KEY) {
         try {
-          const transcript = await transcribeAudio(req.file.path);
-          answerData.text = sanitizeFields({ text: transcript }, ['text']).text;
-          answerText = answerData.text;
+          // Whisper API needs a file stream, so write buffer to temp file
+          const tmpPath = path.join(os.tmpdir(), `intervista-${Date.now()}-${req.file.originalname}`);
+          fs.writeFileSync(tmpPath, req.file.buffer);
+          try {
+            const transcript = await transcribeAudio(tmpPath);
+            answerData.text = sanitizeFields({ text: transcript }, ['text']).text;
+            answerText = answerData.text;
+          } finally {
+            // Always clean up temp file
+            fs.unlinkSync(tmpPath);
+          }
         } catch (err) {
           logger.error('Transcription failed', err);
         }
@@ -184,8 +278,16 @@ export async function getEvaluation(
     }
 
     if (status === 'evaluating') {
-      res.status(202).json({ status: 'evaluating', message: 'Evaluation in progress' });
-      return;
+      // Check for staleness — if stuck evaluating for >5 min, auto-reset
+      const updatedAt = sessionDoc.data()!.updatedAt?.toDate?.();
+      if (updatedAt && (Date.now() - updatedAt.getTime()) > EVALUATION_STALENESS_MS) {
+        logger.warn(`Evaluation for session ${sessionId} is stale (>5 min). Resetting to pending.`);
+        await getDb().collection('sessions').doc(sessionId).update({ status: 'pending', updatedAt: getFieldValue().serverTimestamp() });
+        // Fall through to re-trigger evaluation below
+      } else {
+        res.status(202).json({ status: 'evaluating', jobId: sessionId, message: 'Evaluation in progress' });
+        return;
+      }
     }
 
     if (status === 'evaluation_failed') {
@@ -196,11 +298,13 @@ export async function getEvaluation(
     // Set to evaluating and start background processing
     await getDb().collection('sessions').doc(sessionId).update({ status: 'evaluating', updatedAt: getFieldValue().serverTimestamp() });
 
-    const questionsSnapshot = await getDb().collection('questions').where('sessionId', '==', sessionId).orderBy('index', 'asc').get();
-    const questions = questionsSnapshot.docs.map((doc) => doc.data().text as string);
+    const questionsSnapshot = await getDb().collection('questions').where('sessionId', '==', sessionId).get();
+    const questionsDocs = questionsSnapshot.docs.sort((a, b) => (a.data().index || 0) - (b.data().index || 0));
+    const questions = questionsDocs.map((doc) => doc.data().text as string);
 
-    const answersSnapshot = await getDb().collection('answers').where('sessionId', '==', sessionId).orderBy('questionIndex', 'asc').get();
-    const answers = answersSnapshot.docs.map((doc) => doc.data().text as string);
+    const answersSnapshot = await getDb().collection('answers').where('sessionId', '==', sessionId).get();
+    const answersDocs = answersSnapshot.docs.sort((a, b) => (a.data().questionIndex || 0) - (b.data().questionIndex || 0));
+    const answers = answersDocs.map((doc) => doc.data().text as string);
 
     const personaId = sessionDoc.data()!.personaId;
     const role = sessionDoc.data()!.role || 'Candidate';
@@ -218,6 +322,9 @@ export async function getEvaluation(
         await evalRef.set(evalData);
         await getDb().collection('sessions').doc(sessionId).update({ status: 'completed', updatedAt: getFieldValue().serverTimestamp() });
         emitEvaluationReady(userId, sessionId, evaluation.overallScore);
+
+        // Update user stats (streak, average score, badges)
+        await updateUserStats(userId);
 
         // Send email
         try {
@@ -238,7 +345,7 @@ export async function getEvaluation(
         await getDb().collection('sessions').doc(sessionId).update({ status: 'evaluation_failed', updatedAt: getFieldValue().serverTimestamp() });
       });
 
-    res.status(202).json({ status: 'evaluating', message: 'Evaluation in progress' });
+    res.status(202).json({ status: 'evaluating', jobId: sessionId, message: 'Evaluation in progress' });
   } catch (error) { next(error); }
 }
 

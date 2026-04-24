@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Default: deny all ────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ─── Users ────────────────────────────────────────────
+    // Users can only read/write their own document (doc ID == auth UID)
+    match /users/{userId} {
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ─── Sessions ─────────────────────────────────────────
+    match /sessions/{sessionId} {
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Questions ────────────────────────────────────────
+    match /questions/{questionId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Answers ──────────────────────────────────────────
+    match /answers/{answerId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Evaluations ─────────────────────────────────────
+    match /evaluations/{evalId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Question Banks ──────────────────────────────────
+    match /questionBanks/{bankId} {
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Reports ─────────────────────────────────────────
+    match /reports/{reportId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Token Blocklist ─────────────────────────────────
+    // Server-only via Admin SDK — no client access
+    match /tokenBlocklist/{tokenId} {
+      allow read, write: if false;
+    }
+
+    // ─── Payments ────────────────────────────────────────
+    // Server-only — all payment operations go through the backend
+    match /payments/{paymentId} {
+      allow read, write: if false;
+    }
+
+    // ─── Newsletter Subscribers ──────────────────────────
+    // Public can create (subscribe), but cannot read others
+    match /newsletter_subscribers/{docId} {
+      allow create: if true;
+      allow read, update, delete: if false;
+    }
+
+    // ─── Contact Messages ────────────────────────────────
+    // Public can create (submit form), but cannot read
+    match /contact_messages/{docId} {
+      allow create: if true;
+      allow read, update, delete: if false;
+    }
+  }
+}

@@ -11,9 +11,11 @@ import {
   Settings, 
   LogOut,
   X,
-  Home 
+  Home,
+  Sparkles 
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
+import { useSubscription } from "@/contexts/subscription-context";
 
 const navItems = [
     {
@@ -57,6 +59,7 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen = false, setMobileOpen, onSignOutClick }: SidebarProps) {
     const pathname = usePathname();
     const { user } = useAuth();
+    const { isPremium } = useSubscription();
 
     return (
       <>
@@ -134,6 +137,18 @@ export function Sidebar({ mobileOpen = false, setMobileOpen, onSignOutClick }: S
 
             {/* Bottom section */}
             <div className="p-4 shrink-0 border-t border-gray-200 dark:border-[#1E1E2E]">
+                {/* Upgrade CTA for free users */}
+                {!isPremium && (
+                  <Link
+                    href="/pricing"
+                    className="flex items-center gap-2 px-3 py-2.5 mb-3 rounded-lg bg-gradient-to-r from-indigo-600/10 to-purple-600/10 border border-indigo-500/20 hover:border-indigo-500/40 transition-all group"
+                    onClick={() => setMobileOpen?.(false)}
+                  >
+                    <Sparkles className="w-4 h-4 text-indigo-400 group-hover:text-indigo-300" />
+                    <span className="text-xs font-semibold text-indigo-400 group-hover:text-indigo-300">Upgrade to Premium</span>
+                  </Link>
+                )}
+
                 {/* User Section */}
                 <div className="flex items-center gap-3 mb-4 px-2">
                     <div className="h-9 w-9 rounded-full bg-indigo-100 text-indigo-600 dark:bg-[#6366F1]/20 dark:text-[#6366F1] flex items-center justify-center font-bold text-sm shrink-0">
@@ -143,8 +158,12 @@ export function Sidebar({ mobileOpen = false, setMobileOpen, onSignOutClick }: S
                         <span className="text-sm font-medium text-gray-900 dark:text-[#F4F4F5] truncate">
                             {user?.name || "Tanu"}
                         </span>
-                        <span className="text-xs font-semibold text-gray-500 dark:text-emerald-400">
-                           Free Plan
+                        <span className={`text-xs font-semibold ${
+                          isPremium 
+                            ? "text-indigo-400" 
+                            : "text-gray-500 dark:text-zinc-500"
+                        }`}>
+                           {isPremium ? "Premium ✨" : "Free Plan"}
                         </span>
                     </div>
                 </div>

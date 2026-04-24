@@ -13,12 +13,14 @@ export async function getOverview(
     const userId = req.user!.sub;
 
     // Fetch all sessions
-    const sessionsSnap = await getDb().collection('sessions').where('userId', '==', userId).orderBy('createdAt', 'asc').get();
+    const sessionsSnap = await getDb().collection('sessions').where('userId', '==', userId).get();
     const sessions = sessionsSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[];
+    sessions.sort((a, b) => (new Date(a.createdAt?.toDate?.() || a.createdAt).getTime() || 0) - (new Date(b.createdAt?.toDate?.() || b.createdAt).getTime() || 0));
 
     // Fetch all evaluations
-    const evalsSnap = await getDb().collection('evaluations').where('userId', '==', userId).orderBy('createdAt', 'asc').get();
+    const evalsSnap = await getDb().collection('evaluations').where('userId', '==', userId).get();
     const evaluations = evalsSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[];
+    evaluations.sort((a, b) => (new Date(a.createdAt?.toDate?.() || a.createdAt).getTime() || 0) - (new Date(b.createdAt?.toDate?.() || b.createdAt).getTime() || 0));
 
     const totalSessions = sessions.length;
     const completedSessions = sessions.filter((s) => s.status === 'completed').length;
@@ -63,24 +65,41 @@ export async function getOverview(
       improvementRate = first3Avg > 0 ? Math.round(((last3Avg - first3Avg) / first3Avg) * 100) : 0;
     }
 
-    // Streak (consecutive days with sessions)
+    // Streak — only count days with COMPLETED interviews
+    const STREAK_BADGE_MILESTONES: Record<number, string> = {
+      3: '3-Day Streak 🔥',
+      7: '7-Day Streak 🔥🔥',
+      14: '14-Day Streak 🔥🔥🔥',
+      30: '30-Day Streak 🏆',
+    };
+
     let streak = 0;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const sessionDates = new Set(
-      sessions.map((s) => {
-        const d = s.createdAt?.toDate?.() || new Date();
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      })
+    const completedSessionDates = new Set(
+      sessions
+        .filter((s) => s.status === 'completed')
+        .map((s) => {
+          const d = s.createdAt?.toDate?.() || new Date();
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        })
     );
     for (let i = 0; i < 365; i++) {
       const checkDate = new Date(today);
       checkDate.setDate(checkDate.getDate() - i);
       const key = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
-      if (sessionDates.has(key)) {
+      if (completedSessionDates.has(key)) {
         streak++;
       } else if (i > 0) {
         break;
+      }
+    }
+
+    // Badges based on streak milestones
+    const badges: string[] = [];
+    for (const [milestone, badge] of Object.entries(STREAK_BADGE_MILESTONES)) {
+      if (streak >= parseInt(milestone)) {
+        badges.push(badge);
       }
     }
 
@@ -88,7 +107,7 @@ export async function getOverview(
       data: {
         totalSessions, completedSessions, averageScore,
         scoreHistory, skillsProgress, topRoles,
-        improvementRate, streak,
+        improvementRate, streak, badges,
       },
     });
   } catch (error) { next(error); }
@@ -102,14 +121,20 @@ export async function getSkillsRadar(
 ): Promise<void> {
   try {
     const userId = req.user!.sub;
-    const evalsSnap = await getDb().collection('evaluations').where('userId', '==', userId).orderBy('createdAt', 'desc').limit(1).get();
+    const evalsSnap = await getDb().collection('evaluations').where('userId', '==', userId).get();
 
     if (evalsSnap.empty) {
       res.json({ data: { communication: 0, technicalKnowledge: 0, problemSolving: 0, confidence: 0 } });
       return;
     }
 
-    const latest = evalsSnap.docs[0].data();
+    const evalsDocs = evalsSnap.docs.sort((a, b) => {
+      const aTime = a.data().createdAt?.toDate?.()?.getTime() || 0;
+      const bTime = b.data().createdAt?.toDate?.()?.getTime() || 0;
+      return bTime - aTime;
+    });
+
+    const latest = evalsDocs[0].data();
     res.json({ data: latest.skillsAssessment || { communication: 0, technicalKnowledge: 0, problemSolving: 0, confidence: 0 } });
   } catch (error) { next(error); }
 }
@@ -122,9 +147,14 @@ export async function getRecommendations(
 ): Promise<void> {
   try {
     const userId = req.user!.sub;
-    const evalsSnap = await getDb().collection('evaluations').where('userId', '==', userId).orderBy('createdAt', 'desc').limit(3).get();
+    const evalsSnap = await getDb().collection('evaluations').where('userId', '==', userId).get();
+    const evalsDocs = evalsSnap.docs.sort((a, b) => {
+      const aTime = a.data().createdAt?.toDate?.()?.getTime() || 0;
+      const bTime = b.data().createdAt?.toDate?.()?.getTime() || 0;
+      return bTime - aTime;
+    }).slice(0, 3);
 
-    const summaries = evalsSnap.docs.map((d) => d.data().executiveSummary as string).filter(Boolean);
+    const summaries = evalsDocs.map((d) => d.data().executiveSummary as string).filter(Boolean);
 
     if (summaries.length === 0) {
       res.json({ data: ['Complete your first interview to get personalized recommendations'] });
@@ -145,11 +175,16 @@ import { successResponse, errorResponse } from '../lib/apiResponse';
 export async function getTrend(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.sub;
-    const evalsSnap = await getDb().collection('evaluations').where('userId', '==', userId).orderBy('createdAt', 'asc').get();
+    const evalsSnap = await getDb().collection('evaluations').where('userId', '==', userId).get();
+    const evalsDocs = evalsSnap.docs.sort((a, b) => {
+      const aTime = a.data().createdAt?.toDate?.()?.getTime() || 0;
+      const bTime = b.data().createdAt?.toDate?.()?.getTime() || 0;
+      return aTime - bTime;
+    });
     const sessionsSnap = await getDb().collection('sessions').where('userId', '==', userId).get();
     const sessionsMap = new Map(sessionsSnap.docs.map(d => [d.id, d.data()]));
 
-    const trend = evalsSnap.docs.map(d => {
+    const trend = evalsDocs.map(d => {
       const data = d.data();
       const session = sessionsMap.get(data.sessionId);
       return {
@@ -178,16 +213,22 @@ export async function getTrend(req: AuthRequest, res: Response, next: NextFuncti
 export async function getWeaknesses(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.sub;
-    const evalsSnap = await getDb().collection('evaluations').where('userId', '==', userId).orderBy('createdAt', 'desc').limit(3).get();
+    const evalsSnap = await getDb().collection('evaluations').where('userId', '==', userId).get();
 
     if (evalsSnap.empty) {
       res.status(200).json(successResponse({ weaknesses: [] }));
       return;
     }
 
+    const evalsDocs = evalsSnap.docs.sort((a, b) => {
+      const aTime = a.data().createdAt?.toDate?.()?.getTime() || 0;
+      const bTime = b.data().createdAt?.toDate?.()?.getTime() || 0;
+      return bTime - aTime;
+    }).slice(0, 3);
+
     // Aggregate skill scores across recent evaluations
     const skillTotals: Record<string, { total: number; count: number }> = {};
-    for (const doc of evalsSnap.docs) {
+    for (const doc of evalsDocs) {
       const skills = doc.data().skillsAssessment;
       if (!skills) continue;
       for (const [key, val] of Object.entries(skills)) {
@@ -222,10 +263,15 @@ export async function getWeaknesses(req: AuthRequest, res: Response, next: NextF
 export async function getImprovement(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.sub;
-    const evalsSnap = await getDb().collection('evaluations').where('userId', '==', userId).orderBy('createdAt', 'desc').limit(3).get();
+    const evalsSnap = await getDb().collection('evaluations').where('userId', '==', userId).get();
+    const evalsDocs = evalsSnap.docs.sort((a, b) => {
+      const aTime = a.data().createdAt?.toDate?.()?.getTime() || 0;
+      const bTime = b.data().createdAt?.toDate?.()?.getTime() || 0;
+      return bTime - aTime;
+    }).slice(0, 3);
 
     const areas: string[] = [];
-    for (const doc of evalsSnap.docs) {
+    for (const doc of evalsDocs) {
       const data = doc.data();
       // Collect concrete tips from interviewTips and improvementPlan
       if (data.interviewTips && Array.isArray(data.interviewTips)) {

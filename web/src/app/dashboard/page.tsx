@@ -9,6 +9,8 @@ import { NewSessionDialog } from "@/components/dashboard/new-session-dialog";
 import { getSessions, getAnalyticsOverview, type InterviewSession, type AnalyticsOverview } from "@/lib/api";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useAuth } from "@/contexts/auth-context";
+import { useSubscription } from "@/contexts/subscription-context";
+import { UpgradeModal } from "@/components/ui/upgrade-modal";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -24,6 +26,9 @@ export default function DashboardPage() {
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [showSidebarMobile, setShowSidebarMobile] = useState(false);
   const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeFeature, setUpgradeFeature] = useState("");
+  const { isPremium, sessionsRemaining, sessionsLimit, sessionsUsed } = useSubscription();
 
   // Close dropdowns on outside click (simplified)
   const menuRef = useRef<HTMLDivElement>(null);
@@ -142,10 +147,12 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Upgrade Button */}
-            <Link href="/pricing" className="hidden sm:inline-flex items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:opacity-90 transition-opacity">
-              Upgrade to Pro
-            </Link>
+            {/* Upgrade Button — only for free users */}
+            {!isPremium && (
+              <Link href="/pricing" className="hidden sm:inline-flex items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:opacity-90 transition-opacity">
+                Upgrade to Pro
+              </Link>
+            )}
 
             {/* Avatar Dropdown */}
             <div className="relative">
@@ -216,6 +223,21 @@ export default function DashboardPage() {
                 </motion.div>
               ))}
             </div>
+
+            {/* Session Counter for free users */}
+            {!isPremium && (
+              <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl px-5 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-amber-400 text-lg">⚡</span>
+                  <span className="text-sm text-zinc-400">
+                    <span className="text-white font-semibold">{sessionsRemaining}</span> of {sessionsLimit} free interviews remaining this month
+                  </span>
+                </div>
+                <Link href="/pricing" className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors">
+                  Upgrade →
+                </Link>
+              </div>
+            )}
           </section>
 
           {/* Section 2: Hero CTA Banner */}
@@ -385,6 +407,9 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Upgrade Modal */}
+      <UpgradeModal open={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} feature={upgradeFeature} />
 
     </div>
   );

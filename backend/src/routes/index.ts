@@ -30,9 +30,9 @@ const aiLimiter = rateLimit({
 
 router.use('/auth', authRoutes);
 router.use('/sessions', sessionRoutes);
-router.use('/answers', answerRoutes);
+router.use('/answers', aiLimiter, answerRoutes);
 router.use('/question-banks', questionBankRoutes);
-router.use('/analytics', analyticsRoutes);
+router.use('/analytics', aiLimiter, analyticsRoutes);
 router.use('/users', userRoutes);
 router.use('/tts', aiLimiter, ttsRoutes);
 router.use('/reports', reportRoutes);

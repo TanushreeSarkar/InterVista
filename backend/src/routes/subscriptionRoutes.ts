@@ -1,11 +1,15 @@
 import { Router } from 'express';
-import { getSubscriptionStatus, createCheckoutSession, createPortalSession } from '../controllers/subscriptionController';
+import { getSubscriptionStatus, createOrder, verifyPayment, handleWebhook } from '../controllers/subscriptionController';
 import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
 
+// Authenticated routes
 router.get('/status', authMiddleware, getSubscriptionStatus);
-router.post('/checkout', authMiddleware, createCheckoutSession);
-router.post('/portal', authMiddleware, createPortalSession);
+router.post('/create-order', authMiddleware, createOrder);
+router.post('/verify-payment', authMiddleware, verifyPayment);
+
+// Webhook — NO auth middleware (uses Razorpay signature verification)
+router.post('/webhook', handleWebhook);
 
 export const subscriptionRoutes = router;
