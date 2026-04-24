@@ -40,12 +40,16 @@ export async function getQuestionBanks(
 ): Promise<void> {
   try {
     const userId = req.user!.sub;
-    const snapshot = await getDb().collection('questionBanks').where('userId', '==', userId).orderBy('createdAt', 'desc').get();
+    const snapshot = await getDb().collection('questionBanks').where('userId', '==', userId).get();
     const banks = snapshot.docs.map((doc) => ({
       id: doc.id, ...doc.data(),
       createdAt: doc.data().createdAt?.toDate?.()?.toISOString?.() || null,
       updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString?.() || null,
-    }));
+    })).sort((a: any, b: any) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
     res.json({ data: banks });
   } catch (error) { next(error); }
 }

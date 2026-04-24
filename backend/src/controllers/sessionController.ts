@@ -77,12 +77,16 @@ export async function getSessions(
 ): Promise<void> {
   try {
     const userId = req.user!.sub;
-    const snapshot = await getDb().collection('sessions').where('userId', '==', userId).orderBy('createdAt', 'desc').get();
+    const snapshot = await getDb().collection('sessions').where('userId', '==', userId).get();
     const sessions = snapshot.docs.map((doc) => ({
       id: doc.id, ...doc.data(),
       createdAt: doc.data().createdAt?.toDate?.()?.toISOString?.() || null,
       updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString?.() || null,
-    }));
+    })).sort((a: any, b: any) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA; // desc
+    });
     res.json({ data: sessions });
   } catch (error) { next(error); }
 }
@@ -117,12 +121,12 @@ export async function getSessionQuestions(
     if (!sessionDoc.exists) { res.status(404).json({ error: 'Session not found.' }); return; }
     if (sessionDoc.data()!.userId !== userId) { res.status(403).json({ error: 'Forbidden.' }); return; }
 
-    const snapshot = await getDb().collection('questions').where('sessionId', '==', sessionId).orderBy('index', 'asc').get();
+    const snapshot = await getDb().collection('questions').where('sessionId', '==', sessionId).get();
     const questions = snapshot.docs.map((doc) => ({
       id: doc.id, ...doc.data(),
       createdAt: doc.data().createdAt?.toDate?.()?.toISOString?.() || null,
       updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString?.() || null,
-    }));
+    })).sort((a: any, b: any) => (a.index || 0) - (b.index || 0));
     res.json({ data: questions });
   } catch (error) { next(error); }
 }
@@ -140,15 +144,17 @@ export async function getSessionTranscript(
     if (!sessionDoc.exists) { res.status(404).json({ error: 'Session not found.' }); return; }
     if (sessionDoc.data()!.userId !== userId) { res.status(403).json({ error: 'Forbidden.' }); return; }
 
-    const questionsSnap = await getDb().collection('questions').where('sessionId', '==', sessionId).orderBy('index', 'asc').get();
-    const answersSnap = await getDb().collection('answers').where('sessionId', '==', sessionId).orderBy('questionIndex', 'asc').get();
+    const questionsSnap = await getDb().collection('questions').where('sessionId', '==', sessionId).get();
+    const answersSnap = await getDb().collection('answers').where('sessionId', '==', sessionId).get();
     const answersMap = new Map(answersSnap.docs.map((d) => [d.data().questionIndex, d.data()]));
 
     // Get evaluation if exists
     const evalSnap = await getDb().collection('evaluations').where('sessionId', '==', sessionId).limit(1).get();
     const evaluation = evalSnap.empty ? null : evalSnap.docs[0].data();
 
-    const transcript = questionsSnap.docs.map((qDoc, i) => {
+    const questionsDocs = questionsSnap.docs.sort((a, b) => (a.data().index || 0) - (b.data().index || 0));
+
+    const transcript = questionsDocs.map((qDoc, i) => {
       const answer = answersMap.get(i);
       const feedback = evaluation?.feedback?.[i];
       return {
@@ -177,8 +183,8 @@ export async function exportSession(
     if (!sessionDoc.exists) { res.status(404).json({ error: 'Session not found.' }); return; }
     if (sessionDoc.data()!.userId !== userId) { res.status(403).json({ error: 'Forbidden.' }); return; }
 
-    const questionsSnap = await getDb().collection('questions').where('sessionId', '==', sessionId).orderBy('index', 'asc').get();
-    const answersSnap = await getDb().collection('answers').where('sessionId', '==', sessionId).orderBy('questionIndex', 'asc').get();
+    const questionsSnap = await getDb().collection('questions').where('sessionId', '==', sessionId).get();
+    const answersSnap = await getDb().collection('answers').where('sessionId', '==', sessionId).get();
     const evalSnap = await getDb().collection('evaluations').where('sessionId', '==', sessionId).limit(1).get();
 
     const sessionData = sessionDoc.data()!;
@@ -187,9 +193,11 @@ export async function exportSession(
 
     const exportData = {
       session: { id: sessionId, role: sessionData.role, company: sessionData.company, difficulty: sessionData.difficulty, createdAt: sessionData.createdAt?.toDate?.()?.toISOString?.() },
-      questions: questionsSnap.docs.map((qDoc, i) => ({
-        index: i, text: qDoc.data().text, answer: answersMap.get(i)?.text || '',
-      })),
+      questions: questionsSnap.docs
+        .sort((a, b) => (a.data().index || 0) - (b.data().index || 0))
+        .map((qDoc, i) => ({
+          index: i, text: qDoc.data().text, answer: answersMap.get(i)?.text || '',
+        })),
       evaluation: evaluation ? {
         overallScore: evaluation.overallScore, summary: evaluation.summary, recommendation: evaluation.recommendation,
         skillsAssessment: evaluation.skillsAssessment, feedback: evaluation.feedback,

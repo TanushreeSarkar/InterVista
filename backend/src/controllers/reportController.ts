@@ -8,12 +8,17 @@ export const getReports = async (req: AuthRequest, res: Response): Promise<void>
     const userId = req.user!.sub;
     const reportsSnapshot = await getDb().collection('reports')
       .where('userId', '==', userId)
-      .orderBy('createdAt', 'desc')
       .get();
 
     const reports: any[] = [];
     reportsSnapshot.forEach((doc: any) => {
       reports.push({ id: doc.id, ...doc.data() });
+    });
+    
+    reports.sort((a, b) => {
+      const aTime = a.createdAt?.toDate?.()?.getTime() || 0;
+      const bTime = b.createdAt?.toDate?.()?.getTime() || 0;
+      return bTime - aTime;
     });
 
     res.status(200).json(successResponse(reports));

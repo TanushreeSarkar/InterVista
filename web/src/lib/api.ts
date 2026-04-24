@@ -559,19 +559,33 @@ export async function getReportById(reportId: string): Promise<any> {
 }
 
 // ─── Subscription API ──────────────────────────────────────
-export async function getSubscriptionStatus(): Promise<any> {
-  return apiFetch<any>('/api/subscription/status');
+export interface SubscriptionStatus {
+  plan: 'free' | 'premium';
+  status: 'active' | 'expired' | 'cancelled';
+  expiresAt: string | null;
+  sessionsUsed: number;
+  sessionsLimit: number; // -1 = unlimited
+  razorpayKeyId: string | null;
 }
 
-export async function createCheckoutSession(): Promise<{ url: string }> {
-  return apiFetch<{ url: string }>('/api/subscription/checkout', {
+export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
+  return apiFetch<SubscriptionStatus>('/api/subscription/status');
+}
+
+export async function createRazorpayOrder(): Promise<{ orderId: string; amount: number; currency: string; keyId: string }> {
+  return apiFetch<{ orderId: string; amount: number; currency: string; keyId: string }>('/api/subscription/create-order', {
     method: 'POST',
   });
 }
 
-export async function createPortalSession(): Promise<{ url: string }> {
-  return apiFetch<{ url: string }>('/api/subscription/portal', {
+export async function verifyRazorpayPayment(data: {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}): Promise<{ plan: string; status: string; expiresAt: string; message: string }> {
+  return apiFetch<{ plan: string; status: string; expiresAt: string; message: string }>('/api/subscription/verify-payment', {
     method: 'POST',
+    body: JSON.stringify(data),
   });
 }
 

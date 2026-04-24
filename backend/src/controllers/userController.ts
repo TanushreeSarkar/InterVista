@@ -27,6 +27,11 @@ export async function getProfile(
         bio: data.bio || '',
         targetRole: data.targetRole || '',
         targetCompany: data.targetCompany || '',
+        streak: data.streak || 0,
+        averageScore: data.averageScore || 0,
+        badges: data.badges || [],
+        totalInterviews: data.totalInterviews || 0,
+        lastInterviewDate: data.lastInterviewDate?.toDate?.()?.toISOString?.() || null,
         preferences: data.preferences || {
           emailNotifications: true,
           pushNotifications: false,

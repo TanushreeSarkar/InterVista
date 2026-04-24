@@ -2,6 +2,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { createSession, getSessions, getSession, getSessionQuestions, getSessionTranscript, exportSession, listPersonas, deleteSession } from '../controllers/sessionController';
 import { authMiddleware } from '../middleware/auth';
+import { checkSessionLimit, requirePremium } from '../middleware/subscription';
 import { validateBody } from '../middleware/validate';
 import { createSessionSchema } from '../validators';
 
@@ -18,13 +19,14 @@ const sessionCreateLimiter = rateLimit({
   },
 });
 
-router.post('/', authMiddleware, sessionCreateLimiter, validateBody(createSessionSchema), createSession);
+router.post('/', authMiddleware, sessionCreateLimiter, checkSessionLimit, validateBody(createSessionSchema), createSession);
 router.get('/', authMiddleware, getSessions);
 router.get('/personas', authMiddleware, listPersonas);
 router.get('/:id', authMiddleware, getSession);
 router.get('/:id/questions', authMiddleware, getSessionQuestions);
 router.get('/:id/transcript', authMiddleware, getSessionTranscript);
-router.get('/:id/export', authMiddleware, exportSession);
+router.get('/:id/export', authMiddleware, requirePremium, exportSession);
 router.delete('/:id', authMiddleware, deleteSession);
 
 export const sessionRoutes = router;
+
